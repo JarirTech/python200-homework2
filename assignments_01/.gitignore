@@ -1,0 +1,13 @@
+.env
+node_modules/
+*.log
+*.tmp
+*.swp
+venv
+*.pyc
+.venv/
+__pycache__/
+dist/
+build/
+.cache/
+__pycache__/
