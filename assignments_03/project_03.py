@@ -310,6 +310,9 @@ disp.plot()
 plt.title("Best Model Confusion Matrix")
 plt.savefig("outputs/best_model_confusion_matrix.png")
 plt.close()
+# From the confusion matrix, the Random Forest makes more false negatives than false positives.
+# That means it occasionally lets spam through, which is the more costly error for a spam filter.
+# Even so, its overall recall for spam is higher than the other models, making it the best choice.
 
 
 # Feature Importances
@@ -329,19 +332,15 @@ plt.tight_layout()
 plt.savefig("outputs/feature_importances.png")
 plt.close()
 
-
-# # Yes, the Decision Tree and Random Forest agree on several important
-# features, especially char_freq_!, char_freq_$, word_freq_free,
-# word_freq_remove, and capital letter features.
-
-# The Random Forest is generally more reliable because it averages many trees,
-# so its feature rankings are more stable than a single Decision Tree.
-
-# Yes, the results match my intuition about spam emails.
-# Spam messages often use words like "free" or "remove",
-# include money symbols like "$",
-# many exclamation marks,
-# and long runs of capital letters to attract attention.
+# Random Forest is the strongest model overall — it has the highest accuracy,
+# balanced precision/recall, and the lowest variance across folds. KNN improves greatly
+# after scaling because it relies on distance; PCA helps slightly but not more than scaling.
+# Logistic Regression also benefits from scaling, but PCA reduces its performance because
+# the compressed components lose some linear signal. Decision Trees overfit as depth grows:
+# train accuracy rises while test accuracy stops improving, so depth=5 is the best balance.
+# For a spam filter, accuracy is not the only goal — false negatives (spam that gets through)
+# are more costly than false positives. A small number of false positives is acceptable,
+# but letting spam through is worse for users, so recall for the spam class matters most.
 
 #----------------------------------------------------------------------------------------
 
@@ -445,3 +444,8 @@ print(classification_report(y_test, pipe2_pred))
 # The tree pipeline uses only RandomForest because tree-based models do not require scaling or PCA.
 # The non-tree pipeline includes scaling and PCA because Logistic Regression depends on standardized inputs.
 # Pipelines bundle preprocessing + modeling into one object, preventing leakage and ensuring consistent steps during training and deployment.
+# The two pipelines do not have the same structure: the tree-based pipeline contains only the model
+# because trees do not require scaling or PCA. The non-tree pipeline includes scaling and PCA because
+# Logistic Regression depends on standardized inputs and benefits from dimensionality reduction.
+# Packaging preprocessing with the model ensures the exact same steps are applied during training,
+# evaluation, and deployment, preventing data leakage and making the workflow reproducible.
