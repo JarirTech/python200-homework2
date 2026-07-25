@@ -178,7 +178,8 @@ plt.axhline(0.90, linestyle="--")
 plt.xlabel("Components")
 plt.ylabel("Cumulative Variance")
 plt.title("PCA Explained Variance")
-plt.savefig("outputs/pca_variance.png")
+plt.savefig("outputs/pca_explained_variance.png")
+
 plt.close()
 
 n = np.argmax(cum_var >= 0.90) + 1
@@ -186,6 +187,8 @@ print("Components for 90% variance:", n)
 
 X_train_pca = pca.transform(X_train_scaled)[:, :n]
 X_test_pca = pca.transform(X_test_scaled)[:, :n]
+
+# Scaling features and fitting PCA on training only  avoiding data leakage.
 
 #----------------------------------------------------------------------------------------
 
@@ -255,6 +258,8 @@ tree_pred = tree.predict(X_test)
 print("\nDecision Tree")
 print("Accuracy:", accuracy_score(y_test, tree_pred))
 print(classification_report(y_test, tree_pred))
+# As depth increases, the tree memorizes the training data (train ↑, test ↓), showing clear overfitting.
+# max_depth=5 provides the best balance between bias and variance, so I use it for production.
 
 # Random Forest
 rf = RandomForestClassifier(
@@ -437,12 +442,6 @@ print("\nNon Tree Pipeline")
 print(classification_report(y_test, pipe2_pred))
 
 # comments:
-# The two pipelines are different.
-
-# Tree Pipeline only has Random Forest because trees do not need scaling.
-
-# Non Tree Pipeline has scaler, PCA, and Logistic Regression
-# because this model needs scaled data.
-
-# Pipelines are useful because they keep all steps together,
-# reduce mistakes, and make deployment easier.
+# The tree pipeline uses only RandomForest because tree-based models do not require scaling or PCA.
+# The non-tree pipeline includes scaling and PCA because Logistic Regression depends on standardized inputs.
+# Pipelines bundle preprocessing + modeling into one object, preventing leakage and ensuring consistent steps during training and deployment.

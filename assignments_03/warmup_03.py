@@ -88,11 +88,20 @@ cv_scores = cross_val_score(knn, X_train, y_train, cv=5)
 
 
 #Print each fold score, the mean, and the standard deviation
-print(cv_scores)           # accuracy on each fold
-print(f"Mean: {cv_scores.mean():.3f}")
-print(f"Std:  {cv_scores.std():.3f}")
 
-#comment: this result is more trustworthy than one split because it tests multiple folds.
+# print(cv_scores)
+# print(f"Mean: {cv_scores.mean():.3f}")
+# print(f"Std: {cv_scores.std():.3f}")
+
+for i, score in enumerate(cv_scores, start=1):
+    print(f"Fold {i}: {score:.3f}")
+
+print(f"Mean: {cv_scores.mean():.3f}")
+print(f"Std : {cv_scores.std():.3f}")
+
+# Cross-validation is more trustworthy than one train/test split
+# because every sample is used for testing once.
+
 
 ##---------KNN Question 4------------------------------------------------
 print('---------KNN Question 4------------------------------------------------')
@@ -107,8 +116,7 @@ for k in k_values:
     #print k and the mean CV score
     print(f"k={k}, mean CV={cv_scores.mean():.4f}")
 
-# I will Choose k with highest mean score,
-#  because a higher score means the model correctly classifies more samples.
+# I would choose k=5 because it has the highest average cross-validation accuracy.
 
 #------Classifier Evaluation --------------------------------------------------------------
 #---------Classifier Evaluation Question 1------------------------------------------------
@@ -150,21 +158,6 @@ print(classification_report(y_test, tree_pred))
 #------Logistic Regression and Regularization-------------------------------------------
 #------Logistic Regression Question 1------------------------------------------------
 print('-----Logistic Regression Question 1------------------------------------------------')
-#Train three logistic regression models on the scaled Iris data, identical in every way except for the C 
-# parameter: C=0.01, C=1.0, and C=100
-# for c in [0.01, 1.0, 100]:
-#     log_reg = LogisticRegression(
-#         C=c,
-#         max_iter=1000,
-#         solver="lbfgs"
-#     )
-
-#     log_reg.fit(X_train_scaled, y_train)
-
-#     coef_size = np.abs(log_reg.coef_).sum()
-
-#     print(f"C={c}, Total coefficient size={coef_size:.4f}")
-
 
 for c in [0.01, 1.0, 100]:
     log_reg = LogisticRegression(
@@ -272,7 +265,9 @@ fig, axes = plt.subplots(len(n_list)+1, 5, figsize=(10,10))
 # Original row
 for col in range(5):
     axes[0, col].imshow(images[col], cmap="gray_r")
-    axes[0, col].set_title(f"Orig {col}")
+    #axes[0, col].set_title(f"Orig {col}")
+    axes[0, col].set_title(f"Digit {col}")
+    axes[0, 0].set_ylabel("Original", fontsize=12)
     axes[0, col].axis("off")
 
 # Reconstruction rows
@@ -280,7 +275,9 @@ for row, n in enumerate(n_list, start=1):
     for col in range(5):
         recon = reconstruct_digit(col, scores, pca, n)
         axes[row, col].imshow(recon, cmap="gray_r")
-        axes[row, col].set_title(f"n={n}")
+        #axes[row, col].set_title(f"n={n}")
+        if col == 0:
+            axes[row, col].set_ylabel(f"n={n}", fontsize=12)
         axes[row, col].axis("off")
 
 plt.tight_layout()
