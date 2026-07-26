@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -78,7 +79,10 @@ scaled_knn.fit(X_train_scaled, y_train)
 y_pred_scaled = scaled_knn.predict(X_test_scaled)
 print("Accuracy (scaled):", accuracy_score(y_test, y_pred_scaled))
 
-# Scaling has no effect in this dataset because iris features are already similar scale.
+# Scaling makes no noticeable difference on the Iris dataset because all four
+# features are already measured in centimeters and have similar ranges.
+# Since no feature dominates the distance calculation, KNN performs about
+# the same with or without scaling.
 
 #---------KNN Question 3------------------------------------------------
 print('---------KNN Question 3------------------------------------------------')
@@ -116,7 +120,9 @@ for k in k_values:
     #print k and the mean CV score
     print(f"k={k}, mean CV={cv_scores.mean():.4f}")
 
-# I would choose k=5 because it has the highest average cross-validation accuracy.
+# I would choose the value of k with the highest mean cross-validation accuracy
+# because it performs best across multiple train/test splits and is more likely
+# to generalize well to new data.
 
 #------Classifier Evaluation --------------------------------------------------------------
 #---------Classifier Evaluation Question 1------------------------------------------------
@@ -151,31 +157,39 @@ tree_pred = tree.predict(X_test)
 print("Accuracy:", accuracy_score(y_test, tree_pred))
 print(classification_report(y_test, tree_pred))
 
-# Decision Tree accuracy is 96.7%, which is slightly lower than KNN
-# Scaling the data would usually not affect Decision Trees because
-# trees split based on feature thresholds, not distance calculations.
+# The Decision Tree achieved slightly lower accuracy than the KNN model
+# (96.7% compared with the higher KNN accuracy).
+# Scaling would not change Decision Tree performance because trees make
+# splits using feature thresholds rather than distance calculations.
+
 #-------------------------------------------------------------------------------
 #------Logistic Regression and Regularization-------------------------------------------
+
+
 #------Logistic Regression Question 1------------------------------------------------
 print('-----Logistic Regression Question 1------------------------------------------------')
 
 for c in [0.01, 1.0, 100]:
-    log_reg = LogisticRegression(
-        C=c,
-        max_iter=1000,
-        solver="lbfgs"
+    log_reg = OneVsRestClassifier(
+        LogisticRegression(
+            C=c,
+            solver="liblinear",
+            max_iter=1000
+        )
     )
 
     log_reg.fit(X_train_scaled, y_train)
 
-    coef_size = np.abs(log_reg.coef_).sum()
+    # Sum of absolute coefficients across all binary classifiers
+    coef_size = sum(
+        np.abs(est.coef_).sum()
+        for est in log_reg.estimators_
+    )
 
     print(f"C={c}, Total coefficient size={coef_size:.4f}")
 
-
-# As C increases, coefficient size becomes larger.
-# Larger C means weaker regularization.
-
+# As C increases, regularization becomes weaker, allowing larger coefficients.
+# Smaller C applies stronger regularization, shrinking the coefficients.
 #-------------------------------------------------------------------------------
 #------PCA -------------------------------------------
 #------PCA Question 1------------------------------------------------

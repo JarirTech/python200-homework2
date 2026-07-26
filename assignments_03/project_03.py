@@ -176,12 +176,12 @@ plt.figure(figsize=(8,5))
 plt.plot(range(1, len(cum_var)+1), cum_var)
 plt.axhline(0.90, linestyle="--")
 plt.xlabel("Components")
-plt.ylabel("Cumulative Variance")
-plt.title("PCA Explained Variance")
-plt.savefig("outputs/pca_explained_variance.png")
+plt.ylabel("Cumulative Explained Variance")
+plt.title("PCA Cumulative Explained Variance")
+plt.savefig("outputs/pca_cumulative_explained_variance.png")
 
 plt.close()
-
+    
 n = np.argmax(cum_var >= 0.90) + 1
 print("Components for 90% variance:", n)
 
@@ -192,12 +192,12 @@ X_test_pca = pca.transform(X_test_scaled)[:, :n]
 
 #----------------------------------------------------------------------------------------
 
-
 #--------Task 3: A Classifier Comparison------------------
 print('#--------Task 3: A Classifier Comparison------------------')
 
-
-# KNN unscaled
+# -----------------------------
+# KNN Unscaled
+# -----------------------------
 knn = KNeighborsClassifier(n_neighbors=5)
 knn.fit(X_train, y_train)
 
@@ -207,7 +207,9 @@ print("\nKNN Unscaled")
 print("Accuracy:", accuracy_score(y_test, knn_pred))
 print(classification_report(y_test, knn_pred))
 
-# KNN scaled
+# -----------------------------
+# KNN Scaled
+# -----------------------------
 knn.fit(X_train_scaled, y_train)
 
 knn_scaled_pred = knn.predict(X_test_scaled)
@@ -216,7 +218,9 @@ print("\nKNN Scaled")
 print("Accuracy:", accuracy_score(y_test, knn_scaled_pred))
 print(classification_report(y_test, knn_scaled_pred))
 
+# -----------------------------
 # KNN PCA
+# -----------------------------
 knn.fit(X_train_pca, y_train)
 
 knn_pca_pred = knn.predict(X_test_pca)
@@ -225,10 +229,13 @@ print("\nKNN PCA")
 print("Accuracy:", accuracy_score(y_test, knn_pca_pred))
 print(classification_report(y_test, knn_pca_pred))
 
-# Decision Tree depth testing
+# -----------------------------
+# Decision Tree Depth Comparison
+# -----------------------------
 print("\nDecision Tree Depth Comparison")
 
-for depth in [3,5,10,None]:
+for depth in [3, 5, 10, None]:
+
     tree = DecisionTreeClassifier(
         max_depth=depth,
         random_state=42
@@ -245,7 +252,7 @@ for depth in [3,5,10,None]:
         f"Test={test_acc:.4f}"
     )
 
-# choose depth=5 good balance
+# Best Decision Tree
 tree = DecisionTreeClassifier(
     max_depth=5,
     random_state=42
@@ -258,10 +265,24 @@ tree_pred = tree.predict(X_test)
 print("\nDecision Tree")
 print("Accuracy:", accuracy_score(y_test, tree_pred))
 print(classification_report(y_test, tree_pred))
-# As depth increases, the tree memorizes the training data (train ↑, test ↓), showing clear overfitting.
-# max_depth=5 provides the best balance between bias and variance, so I use it for production.
 
+# Top 10 Decision Tree Features
+tree_importance = pd.Series(
+    tree.feature_importances_,
+    index=X.columns
+).sort_values(ascending=False)
+
+print("\nTop 10 Decision Tree Features")
+print(tree_importance.head(10))
+
+# As tree depth increases, training accuracy increases while the gap
+# between training and test accuracy also grows, showing overfitting.
+# Although the fully grown tree achieved the highest test accuracy,
+# deeper trees are more likely to memorize the training data.
+
+# -----------------------------
 # Random Forest
+# -----------------------------
 rf = RandomForestClassifier(
     n_estimators=100,
     random_state=42
@@ -275,7 +296,32 @@ print("\nRandom Forest")
 print("Accuracy:", accuracy_score(y_test, rf_pred))
 print(classification_report(y_test, rf_pred))
 
-# Logistic Regression scaled
+# Top 10 Random Forest Features
+importance = pd.Series(
+    rf.feature_importances_,
+    index=X.columns
+).sort_values(ascending=False)
+
+print("\nTop 10 Random Forest Features")
+print(importance.head(10))
+
+plt.figure(figsize=(10,6))
+importance.head(10).plot(kind="bar")
+plt.title("Random Forest Feature Importances")
+plt.tight_layout()
+plt.savefig("outputs/feature_importances.png")
+plt.close()
+
+# Both models identify important spam indicators such as char_freq_$,
+# char_freq_!, word_freq_remove, word_freq_free, and word_freq_hp.
+# Random Forest also ranks several capital-letter features highly.
+# The models generally agree on the most important predictors, but
+# Random Forest produces more stable importance estimates because
+# it averages many trees instead of relying on a single tree.
+
+# -----------------------------
+# Logistic Regression (Scaled)
+# -----------------------------
 lr = LogisticRegression(
     C=1.0,
     max_iter=1000,
@@ -290,7 +336,9 @@ print("\nLogistic Regression Scaled")
 print("Accuracy:", accuracy_score(y_test, lr_pred))
 print(classification_report(y_test, lr_pred))
 
-# Logistic PCA
+# -----------------------------
+# Logistic Regression + PCA
+# -----------------------------
 lr.fit(X_train_pca, y_train)
 
 lr_pca_pred = lr.predict(X_test_pca)
@@ -299,52 +347,47 @@ print("\nLogistic Regression PCA")
 print("Accuracy:", accuracy_score(y_test, lr_pca_pred))
 print(classification_report(y_test, lr_pca_pred))
 
-# -----------------------------------
+# -----------------------------
 # Best Model Confusion Matrix
-# -----------------------------------
+# -----------------------------
 cm = confusion_matrix(y_test, rf_pred)
 
-disp = ConfusionMatrixDisplay(cm)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm)
 disp.plot()
 
 plt.title("Best Model Confusion Matrix")
 plt.savefig("outputs/best_model_confusion_matrix.png")
 plt.close()
-# From the confusion matrix, the Random Forest makes more false negatives than false positives.
-# That means it occasionally lets spam through, which is the more costly error for a spam filter.
-# Even so, its overall recall for spam is higher than the other models, making it the best choice.
+
+# The Random Forest produces slightly more false negatives than false positives.
+# False negatives allow spam messages into the inbox, which is generally
+# a more costly error than incorrectly filtering a legitimate email.
+# Therefore, improving recall for the spam class is especially important.
+# -----------------------------
+# Overall Comparison
+# -----------------------------
 
 
-# Feature Importances
+# KNN:
+# Scaling improves KNN substantially because distance calculations are
+# affected by feature magnitude. PCA keeps accuracy close to the scaled
+# model but does not improve it further.
+# PCA reduces dimensionality, but scaled KNN performs slightly better.
 
-importance = pd.Series(
-    rf.feature_importances_,
-    index=X.columns
-).sort_values(ascending=False)
+# Logistic Regression:
+# Scaling improves Logistic Regression because all features contribute
+# on the same scale. PCA slightly lowers accuracy because compressing
+# the data removes some useful information.
 
-print("\nTop 10 Random Forest Features")
-print(importance.head(10))
+# Decision Tree vs Random Forest:
+# Random Forest performs better than a single Decision Tree because it
+# combines many trees, reducing overfitting and improving generalization.
 
-plt.figure(figsize=(10,6))
-importance.head(10).plot(kind="bar")
-plt.title("Feature Importances")
-plt.tight_layout()
-plt.savefig("outputs/feature_importances.png")
-plt.close()
-
-# Random Forest is the strongest model overall — it has the highest accuracy,
-# balanced precision/recall, and the lowest variance across folds. KNN improves greatly
-# after scaling because it relies on distance; PCA helps slightly but not more than scaling.
-# Logistic Regression also benefits from scaling, but PCA reduces its performance because
-# the compressed components lose some linear signal. Decision Trees overfit as depth grows:
-# train accuracy rises while test accuracy stops improving, so depth=5 is the best balance.
-# For a spam filter, accuracy is not the only goal — false negatives (spam that gets through)
-# are more costly than false positives. A small number of false positives is acceptable,
-# but letting spam through is worse for users, so recall for the spam class matters most.
-
-#----------------------------------------------------------------------------------------
-
-
+# Spam Filter Discussion:
+# For spam filtering, false negatives are usually worse than false positives.
+# Allowing spam into the inbox is generally more harmful than incorrectly
+# sending a legitimate email to the spam folder, so recall for the spam
+# class is especially important.
 #--------Task 4: Cross-Validation------------------
 print('#--------Task 4: Cross-Validation------------------')
 
