@@ -12,3 +12,4 @@ outputs/
 # IDE files
 .vscode/
 .idea/
+.env
