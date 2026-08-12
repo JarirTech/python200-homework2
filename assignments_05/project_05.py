@@ -376,8 +376,34 @@ if __name__ == "__main__":
 
 #Task 6: Ethics Reflection
 
-# AI job application tools can sometimes give biased advice or favor certain# writing styles 
-# and industries. The output may also contain incorrect or# exaggerated information if the 
-# user does not review it carefully.
-#  One important guardrail is reminding users to always 
-# review and edit the generated content before submitting it to employers.
+# --- Task 6: Ethics Reflection ---
+
+# AI job application tools can sometimes give biased advice or favor
+
+# certain writing styles, industries, or types of experience. They can
+
+# also generate incorrect or exaggerated information if users do not
+
+# carefully review the results.
+
+#
+
+# One important guardrail is reminding users to review and edit all
+
+# generated content before submitting it to an employer. Another
+
+# important guardrail is telling the AI not to invent skills,
+
+# accomplishments, numbers, or work experience that the user does not
+
+# actually have.
+
+#
+
+# Users should also use their own judgment because hiring practices
+
+# and expectations can differ between industries and employers.
+
+# AI should help improve a job application, but the final application
+
+# should accurately represent the applicant's real experience and skills.
