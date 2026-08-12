@@ -3,12 +3,14 @@
 # Task 1: Setup and System Prompt
 
 import json
+import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
 
 load_dotenv()
+print("API key loaded:", bool(os.getenv("OPENAI_API_KEY")))
 
 client = OpenAI()
 
@@ -54,29 +56,26 @@ def get_completion(messages, model="gpt-4o-mini", temperature=0.7):
 # Task 2: Bullet Point Rewriter
 
 def rewrite_bullets(bullets: list[str]) -> list[dict]:
+    """ Rewrite resume bullets and return a parsed list of dictionaries."""
 
-     
     # Format bullets into a delimited block
     bullet_text = "\n".join(f"- {b}" for b in bullets)
 
     prompt = f"""
-    
 
     You are a professional resume coach helping a career changer.
 
     Rewrite each resume bullet point below to be:
 
-    * More specific
-    * More results-oriented
-    * More compelling
-    * Professional sounding
+    More specific
+    More results-oriented
+    More compelling
+    Professional sounding
 
     Use strong action verbs.
 
     Do not invent facts that aren't implied by the original.
     Do not invent numbers, percentages, dates, achievements, awards, or results.
-    If the original bullet does not include a measurable result, improve the
-    wording without adding a measurable result.
 
     Respond ONLY with a valid JSON list.
     Do not include markdown or explanations.
@@ -84,59 +83,60 @@ def rewrite_bullets(bullets: list[str]) -> list[dict]:
 
     Each item in the list must contain exactly two keys:
 
-    * "original"
-    * "improved"
+    "original"
+    "improved"
 
-    Here are the user's bullet points:
+    Here are the bullet points:
 
-    ```
-    {bullet_text}
-    ```
+        {bullet_text}
 
     """
 
-
     messages = [{"role": "user", "content": prompt}]
 
-# Get the model response
+    # Calling the model
     response = get_completion(messages)
 
-# Save the raw response 
+    # Keeping the original response for debugging
     raw_response = response
 
-    print("\nRAW RESPONSE:\n")
+    print("\nRAW RESPONSE:")
     print(raw_response)
 
-# Remove markdown code fences if the model adds them
+    # Removing code fences if the model adds them
     cleaned_response = (
-    raw_response
-    .replace("```json", "")
-    .replace("```", "")
-    .strip()
-)
+        raw_response
+        .replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
 
     try:
-        # Parsing the JSON response
+        # Parse the JSON into a Python list
         results = json.loads(cleaned_response)
 
-        print("\nRewritten Resume Bullets:\n")
+        # Making sure the response is a list
+        if not isinstance(results, list):
+            raise ValueError("Expected a JSON list.")
 
-       # Printing each original and improved bullet point
+        print("\nRewritten Resume Bullets:")
+
+        # Printing each original bullet next to its improved version
         for item in results:
-            print(f"ORIGINAL : {item['original']}")
-            print(f"IMPROVED : {item['improved']}")
+            print(f"\nORIGINAL: {item['original']}")
+            print(f"IMPROVED: {item['improved']}")
             print("-" * 50)
 
+        # Returning the parsed list
         return results
 
-    except json.JSONDecodeError as e:
-        print("\nJSON parsing failed.")
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        print("\nCould not process the JSON response.")
         print("Error:", e)
-        print("Raw response:")
+        print("\nRaw response:")
         print(raw_response)
-        return []
-    
 
+        return []
 # --- Testing ---
 
 starter_bullets = [
@@ -145,15 +145,18 @@ starter_bullets = [
 "Worked with a team to finish the project on time"
 ]
 
-print("\n**** TASK 2 Test ****")
+print("\n**** Testing ****")
 
-rewrite_bullets(starter_bullets)
+rewritten_bullets = rewrite_bullets(starter_bullets)
 
-# The original bullets are weak because they are vague and do not clearly show
+print("\nReturned Result:")
+print(rewritten_bullets)
+
+# The original bullets are not good because they do not clearly show
 
 # achievements, impact, or measurable results.
 
-# The improved bullets highlight clarity, professionalism, and
+# The improved bullets are better because they highlight clarity, professionalism, and
 
 # action-oriented language without inventing unsupported accomplishments.
 
@@ -252,17 +255,20 @@ print("Unsafe input result:", is_safe(unsafe_test))
 
 #Task 5: The Chatbot Loop
 
+
+
 def run_chatbot():
+
 
     # Initialize conversation history
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
-   
+    print("=" * 50)
     print("Job Application Helper")
+    print("=" * 50)
 
-    print("--------------------------------------------------------")
     print("I can help you with:")
     print("  1. Rewriting resume bullet points")
     print("  2. Drafting a cover letter opening")
@@ -279,18 +285,17 @@ def run_chatbot():
             print("\nJob Application Helper: Good luck with your applications!")
             break
 
-        # Skip empty input
+        # Ignore empty input
         if not user_input:
             continue
 
-        # Moderation check
+        # Check the user's message with moderation
         if not is_safe(user_input):
             continue
 
-        
+        # -------------------------------------------------
         # Resume bullet feature
-        
-
+        # -------------------------------------------------
         if "bullet" in user_input.lower() or "resume" in user_input.lower():
 
             print("\nPaste your bullet points below, one per line.")
@@ -307,12 +312,18 @@ def run_chatbot():
                 if line:
                     raw_bullets.append(line)
 
-            rewrite_bullets(raw_bullets)
+            if raw_bullets:
+                rewritten_bullets = rewrite_bullets(raw_bullets)
 
-        
+                print("\nJob Application Helper:")
+                print("Your rewritten bullets are shown above.")
+
+            else:
+                print("\nNo bullet points were provided.")
+
+        # -------------------------------------------------
         # Cover letter feature
-       
-
+        # -------------------------------------------------
         elif "cover letter" in user_input.lower():
 
             job_title = input(
@@ -325,42 +336,42 @@ def run_chatbot():
 
             result = generate_cover_letter(job_title, background)
 
-            print("\nGenerated Cover Letter Opening:\n")
+            print("\nGenerated Cover Letter Opening:")
             print(result)
 
             print("\nReminder: Review and edit this before submitting it.")
 
-      
+        # -------------------------------------------------
         # Regular conversation
-       
-
+        # -------------------------------------------------
         else:
 
-            # Add user message
+            # 1. Append the user's message to conversation history
             messages.append({
                 "role": "user",
                 "content": user_input
             })
 
-            # Get assistant response
+            # 2. Send the conversation history to the model
             reply = get_completion(messages)
 
-            # Print response
+            # 3. Print the assistant's response
             print(f"\nJob Application Helper: {reply}\n")
 
-            # Save assistant response
+            # 4. Append the assistant's response to conversation history
             messages.append({
                 "role": "assistant",
                 "content": reply
             })
 
 
-
-
-
+# --- Main Program ---
 
 if __name__ == "__main__":
     run_chatbot()
+
+
+
 #******************************************************************************
 
 #Task 6: Ethics Reflection

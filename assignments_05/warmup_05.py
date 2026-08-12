@@ -7,7 +7,7 @@
 print("API Question 1***************************************************************")
 from dotenv import load_dotenv
 from openai import OpenAI
-
+import json
 load_dotenv()
 client = OpenAI()
 
@@ -86,17 +86,31 @@ response = client.chat.completions.create( model="gpt-4o-mini", messages=message
 print("System Question 1 (patient Tutor ): ") 
 print(response.choices[0].message.content)
 
+# 
 messages = [
-    {"role": "system", "content": "You are a unpatient, encouraging Python tutor."},
-    {"role": "user", "content": "I don't understand what a list comprehension is."}
+    {
+        "role": "system",
+        "content": (
+            "You are a strict, concise Python instructor. "
+            "Give direct technical explanations without encouragement."
+        )
+    },
+    {
+        "role": "user",
+        "content": "I don't understand what a list comprehension is."
+    }
 ]
-response = client.chat.completions.create( model="gpt-4o-mini", messages=messages )
-print("System Question 1 (unpatient tutor): ") 
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+
+print("\nStrict Instructor Response:")
 print(response.choices[0].message.content)
 
-
-## comment:
-## the output changed when the system personality changed
+# The response changes because the system message changes
+# the personality, tone, and style of the assistant
 
 ###System Question 2*******************************************************************************
 print("System Question 2*******************************************************************************")
@@ -115,124 +129,188 @@ print(response.choices[0].message.content)
 #Prompt Engineering
 
 
-###Prompt Engineering Question 1.  Zero-Shot*******************************************************************************
+#Prompt Engineering Question 1.  Zero-Shot*******************************************************************************
 print("Prompt Engineering Question 1*******************************************************************************")
+
+
 
 reviews = [
     "The onboarding process was smooth and the team was welcoming.",
     "The software crashes constantly and support never responds.",
     "Great price, but the documentation is nearly impossible to follow."
 ]
+
 for i, review in enumerate(reviews, start=1):
-    prompt = f"classify the sentiment of each review below as positive, negative, or mixed:  {review}"
+
+    prompt = f"""
+Classify the sentiment of the review below as exactly one of:
+positive, negative, or mixed.
+
+Do not provide an explanation.
+Return only the sentiment.
+
+Review:
+"{review}"
+"""
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    print(f"\nReview {i}:")
+    print(f"Review {i} Sentiment:")
     print(response.choices[0].message.content)
 
 ###Prompt Engineering Question 2.  one-Shot*******************************************************************************
 print("Prompt Engineering Question 2*******************************************************************************")
 
-example = """Example:
+example = """
+Example:
 Review: "Fast shipping but the item arrived damaged."
-Sentiment: mixed"""
-
-reviews = [
-    "The onboarding process was smooth and the team was welcoming.",
-    "The software crashes constantly and support never responds.",
-    "Great price, but the documentation is nearly impossible to follow."
-]
-for i, review in enumerate(reviews, start=1):
-    prompt = f''' {example}
-
-    Review: "{review}" Sentiment: '''
-    response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": prompt}]
-)
-
-    print(f"\nReview {i}:")
-    print(response.choices[0].message.content)
-
-# the use of one exmple help on formating but the ouput was not as expected as for the second review 
-# negative but the output was mixed
-###Prompt Engineering Question 3.Few-Shot  *******************************************************************************
-print("Prompt Engineering Question 3*******************************************************************")
-
-examples = ''' Review: "Player score nice goal." Sentiment: positive
-
-Review: "The player miss the goal." Sentiment: negative
-
-Review: "The player did a nice kick but missed the goal." Sentiment: mixed '''
+Sentiment: mixed
+"""
 
 for i, review in enumerate(reviews, start=1):
-    prompt = f''' {examples}
 
-    Review: "{review}" Sentiment: '''
+    prompt = f"""
+{example}
+
+Classify the following review as positive, negative, or mixed.
+Return only the sentiment.
+
+Review: "{review}"
+Sentiment:
+"""
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    print(f"\nReview {i}:")
+    print(f"Review {i} Sentiment:")
     print(response.choices[0].message.content)
 
-## using few shots gave consistant output
+# The one-shot example helps the model understand the expected
+# output format and makes the responses more consistent.
+
+
+# Prompt Engineering Question 3.Few-Shot  ****************************************************
+print("Prompt Engineering Question 3********************************************************")
+
+examples = """
+Example 1:
+Review: "The support team was friendly and solved my issue quickly."
+Sentiment: positive
+
+Example 2:
+Review: "The application crashes every day and customer support never replies."
+Sentiment: negative
+
+Example 3:
+Review: "The price is reasonable, but the interface is difficult to use."
+Sentiment: mixed
+"""
+
+for i, review in enumerate(reviews, start=1):
+
+    prompt = f"""
+{examples}
+
+Classify the following review as positive, negative, or mixed.
+Return only the sentiment.
+
+Review: "{review}"
+Sentiment:
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    print(f"Review {i} Sentiment:")
+    print(response.choices[0].message.content)
+
+# Zero-shot is useful when the task is simple and well understood.
+# One-shot is useful when one example is enough to demonstrate the format.
+# Few-shot is useful when multiple examples are needed to demonstrate
+# different categories and improve consistency.
+
 
 ###Prompt Engineering Question 4.Chain of Thought  *******************************************************************************
 print("Prompt Engineering Question 4*******************************************************************")
-prompt = ''' Solve this problem step by step and clearly label the final answer.
 
-A data engineer earns $85,000 per year. She gets a 12% raise, then 6 months later takes 
-a new job that pays $7,500 more per year than her post-raise salary. What is her final annual salary? '''
+prompt = """
+Solve this problem step by step.
 
-response = client.chat.completions.create( 
+A data engineer earns $85,000 per year. She gets a 12% raise,
+then 6 months later takes a new job that pays $7,500 more per
+year than her post-raise salary.
+
+Clearly label the final answer as:
+FINAL ANSWER:
+"""
+
+response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": prompt}] )
+    messages=[{"role": "user", "content": prompt}]
+)
+
 print(response.choices[0].message.content)
-#Why does asking the model to reason step by step tend to improve accuracy on problems like this?
-# breaking down the problem helped the model to solve it with accuraccy
+
+# Breaking the calculation into smaller steps can help the model
+# avoid arithmetic mistakes and arrive at a more accurate answer.
+
+
+
 ###Prompt Engineering Question 5.Few-Shot  *******************************************************************************
 print("Prompt Engineering Question 5*******************************************************************")
 
-import json
-#return the result only as valid JSON with keys sentiment, confidence (a float from 0 to 1), 
-# and reason (one sentence)
+review = (
+    "I've been using this tool for three months. "
+    "It handles large datasets well, but the UI is clunky "
+    "and the export options are limited."
+)
 
-review = "I've been using this tool for three months. It handles large datasets well, \
-but the UI is clunky and the export options are limited."
+prompt = f"""
+Analyze the review below.
 
-prompt = f''' Analyze the review and return ONLY valid JSON.
+Return ONLY valid JSON.
+Do not use markdown or code fences.
 
-Required keys:
+The JSON must contain exactly these three keys:
+- "sentiment": a string containing "positive", "negative", or "mixed"
+- "confidence": a float between 0 and 1
+- "reason": one sentence explaining the sentiment
 
-sentiment
-confidence
-reason
+Review:
+"{review}"
+"""
 
-Review: "{review}" '''
-response = client.chat.completions.create( 
-    model="gpt-4o-mini", 
-    messages=[{"role": "user", "content": prompt}] )
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": prompt}]
+)
 
-raw_response = response.choices[0].message.content 
-print("Raw Response: ", raw_response) 
+raw_response = response.choices[0].message.content
 
+print("\nRaw Response:")
+print(raw_response)
 
-try: 
+try:
     parsed = json.loads(raw_response)
 
-    print("\nSentiment:", parsed["sentiment"])
+    print("\nParsed JSON Fields:")
+    print("Sentiment:", parsed["sentiment"])
     print("Confidence:", parsed["confidence"])
     print("Reason:", parsed["reason"])
 
-except json.JSONDecodeError:
-    print("\nInvalid JSON response.") 
+except json.JSONDecodeError as e:
+    print("\nInvalid JSON response.")
+    print("Error:", e)
+    print("Raw response:")
     print(raw_response)
+
 
 ###Prompt Engineering Question 6.Delimiters  *******************************************************************************
 print("Prompt Engineering Question 6*******************************************************************")
@@ -266,8 +344,10 @@ response = client.chat.completions.create(
     messages=[{"role": "user", "content": prompt}] )
 print(response.choices[0].message.content)
 #
-#Using delimeters to separate commands from the user's text stops the model from getting confused. 
-# This keeps the model focused on the real rules
+# Delimiters clearly separate the user's text from the instructions.
+# This helps prevent the model from confusing the user's content
+# with the instructions it needs to follow.
+
 
 #*****************************************************************************************************
 
@@ -276,15 +356,31 @@ print(response.choices[0].message.content)
 #Ollama Question 1
 print('Ollama Question 1')
 
-""" Example Ollama Output:
-A large language model is an AI system trained on massive amounts of text so it can understand and 
-generate human language. It can answer questions, write text, summarize information, and help with 
-many language tasks. """
+""" Ollama Output:
+A large language model is an artificial intelligence system trained on vast amounts of text data, enabling it to
+understand and generate human-like language, perform tasks like writing, answering questions, or even playing
+games, and adapt to various contexts.  """
+
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[ { "role": "user", "content": "Explain what a large language model is in two sentences." } ])
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain what a large language model is in two sentences."
+        }
+    ]
+)
 
+print("\nOpenAI Response:")
 print(response.choices[0].message.content)
 
-##OpenAI’s answer felt more like a real person and gave more info.Ollama’s answer was quick and easy to
-#  understand.
+
+# Difference:
+# Both responses explain what an LLM is, but the OpenAI response gives
+# more detail about how LLMs work and mentions tasks like translation
+# and summarization. The Ollama response is shorter and simpler.
+# Advantage:
+# Running a model locally can provide more privacy because the data
+# does not need to be sent to an external API.
+# Disadvantage:
+# Local models can be less capable or less detailed than larger
