@@ -1,68 +1,124 @@
-#Jarirtech
-###Part 1: Warmup Exercises*******************************************
+# #Jarirtech
+# Part 1: Warmup 
 
-#The Chat Completions API
 
-###API Question 1******************************************************
-print("API Question 1***************************************************************")
+import json
 from dotenv import load_dotenv
 from openai import OpenAI
-import json
+
+
+
+# Setup
+
+
 load_dotenv()
 client = OpenAI()
 
+
+
+# The Chat Completions API
+
+
+
+
+# API Q1
+# ------------------------------------------------------------
+
+print("\n" + "=" * 50)
+print("API Q1 - First Chat Completion")
+print("=" * 50)
+
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "What is one thing that makes Python a good language for beginners?"}]
+    messages=[
+        {
+            "role": "user",
+            "content": (
+                "What is one thing that makes Python a good language "
+                "for beginners?"
+            )
+        }
+    ]
 )
-print("response: ", response.choices[0].message.content)
 
-#print the name of the model that responded
-print("model: ", response.model)
+print("\nResponse:")
+print(response.choices[0].message.content)
+
+print("\nModel:")
+print(response.model)
+
+print("\nTotal tokens used:")
+print(response.usage.total_tokens)
 
 
+# -------------------------------------------------------------------------
+# API Q2 - Temperature
 
-#total number of tokens used
-print("number of token: ", response.usage.total_tokens)
 
-##API Question 2***************************************************************
-print("API Question 2***************************************************************")
+print("\n" + "=" * 70)
+print("API Q2 - Temperature")
+print("=" * 70)
 
 prompt = "Suggest a creative name for a data engineering consultancy."
 temperatures = [0, 0.7, 1.5]
-for t in temperatures:
+
+for temperature in temperatures:
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],  temperature=t
-             )
-    print(f"\nTemperature = {t}")
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=temperature
+    )
+
+    print(f"\nTemperature {temperature}:")
     print(response.choices[0].message.content)
 
+# Higher temperatures generally produce more varied and creative outputs.
+# Lower temperatures generally produce more predictable and consistent outputs.
+# If I needed a consistent and reproducible result, I would choose
+# temperature=0 because it reduces randomness.
 
-# for temperature = 0.7 and 1.5 the output changes every time, however for temperature = 0 the output
-#  is stable. If I want a consistent, reproducible output I will chose t = 0.
+
+# ------------------------------------------------------------
+# API Q3 - Multiple Completions
 
 
-##API Question 3***************************************************************
-print("API Question 3***************************************************************")
+print("\n" + "=" * 60)
+print("API Q3 - Multiple Completions")
+print("=" * 60)
 
-#Use n=3 with temperature=1.0 to get three different completions in a single API call. Print all three.
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "Give me a one-sentence fun fact about pandas (the animal, not the library)."}],
+    messages=[
+        {
+            "role": "user",
+            "content": (
+                "Give me a one-sentence fun fact about pandas "
+                "(the animal, not the library)."
+            )
+        }
+    ],
     n=3,
     temperature=1.0
 )
-#Iterate over response.choices and print each one.
-for i, choice in enumerate(response.choices, start=1):
-     print(f"Response {i}:") 
-     print(choice.message.content)
+
+for number, choice in enumerate(response.choices, start=1):
+    print(f"\nCompletion {number}:")
+    print(choice.message.content)
 
 
-##API Question 4****************************************************************************
-print("API Question 4*****************************************************************************")
-#Set max_tokens=15 and send a prompt that would normally produce a long response (for example, "Explain how neural networks work."). Print the result. 
-# Add a comment: What happened, and why might you want to use max_tokens in a real application?
+# --------------------------------------------------------------------------------------------
+# API Q4  max_tokens
+
+
+print("\n" + "=" * 60)
+print("API Q4 - max_tokens")
+print("=" * 60)
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
@@ -78,32 +134,34 @@ response = client.chat.completions.create(
 print("\nResponse with max_tokens=15:")
 print(response.choices[0].message.content)
 
-# The response is cut off because max_tokens limits the number of tokens
-# the model can generate. In a real application, max_tokens can help
-# control response length, reduce unnecessary output, and manage costs.
+# The response is limited and may stop before the explanation is complete
+# because max_tokens=15 limits how many tokens the model can generate.
+# In a real application, max_tokens can be useful for controlling response
+# length, reducing unnecessary output, and helping manage API usage and cost.
 
 
-###########################################################################################
-#System Messages and Personas
+# =================================================================================
+# System Messages and Personas
 
-###System Question 1*******************************************************************************
-print("System Question 1*******************************************************************************")
-messages = [
-    {"role": "system", "content": "You are a patient, encouraging Python tutor. You always explain things "
-    "simply and end with a word of encouragement."},
-    {"role": "user", "content": "I don't understand what a list comprehension is."}
-]
-response = client.chat.completions.create( model="gpt-4o-mini", messages=messages )
-print("System Question 1 (patient Tutor ): ") 
-print(response.choices[0].message.content)
 
-# 
+
+
+# System Q1 - Different Personalities
+
+
+print("\n" + "=" * 70)
+print("System Q1 - Different Personalities")
+print("=" * 70)
+
+
+# First personality
 messages = [
     {
         "role": "system",
         "content": (
-            "You are a strict, concise Python instructor. "
-            "Give direct technical explanations without encouragement."
+            "You are a patient, encouraging Python tutor. "
+            "You always explain things simply and end with a word "
+            "of encouragement."
         )
     },
     {
@@ -117,35 +175,88 @@ response = client.chat.completions.create(
     messages=messages
 )
 
-print("\nStrict Instructor Response:")
+print("\nResponse 1 - Patient Python Tutor:")
 print(response.choices[0].message.content)
 
-# The response changed because the system message changed the assistant's
-# personality. The first system message made the assistant patient and
-# encouraging, while the second made it strict, concise, and technical.
-# This changed the tone and style of the response even though the user
-# asked the exact same question.
 
-###System Question 2*******************************************************************************
-print("System Question 2*******************************************************************************")
+# Second personality
 messages = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "My name is Jordan and I'm learning Python."},
-    {"role": "assistant", "content": "Nice to meet you, Jordan! Python is a great choice. What would you like to work on?"},
-    {"role": "user", "content": "Can you remind me what my name is?"}
+    {
+        "role": "system",
+        "content": (
+            "You are a strict but professional Python code reviewer. "
+            "Explain programming concepts directly and focus on "
+            "technical accuracy."
+        )
+    },
+    {
+        "role": "user",
+        "content": "I don't understand what a list comprehension is."
+    }
 ]
-response = client.chat.completions.create( model="gpt-4o-mini", messages=messages )
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+
+print("\nResponse 2 - Strict Python Code Reviewer:")
 print(response.choices[0].message.content)
 
-##Comment:
-## the system know Jordan name because the name was included in the messages history as a list 
-#*************************************************************************************************
-#Prompt Engineering
+# The user question stayed the same, but the system message changed.
+# The first assistant should be encouraging and simple, while the second
+# should be more direct and technical. The system message changes the
+# assistant's personality, tone, and style.
 
 
-#Prompt Engineering Question 1.  Zero-Shot*******************************************************************************
-print("Prompt Engineering Question 1*******************************************************************************")
+# ------------------------------------------------------------
+# System Q2 - Conversation History
 
+
+print("\n" + "=" * 70)
+print("System Q2 - Conversation History")
+print("=" * 70)
+
+messages = [
+    {
+        "role": "system",
+        "content": "You are a helpful assistant."
+    },
+    {
+        "role": "user",
+        "content": "My name is Jordan and I'm learning Python."
+    },
+    {
+        "role": "assistant",
+        "content": (
+            "Nice to meet you, Jordan! Python is a great choice. "
+            "What would you like to work on?"
+        )
+    },
+    {
+        "role": "user",
+        "content": "Can you remind me what my name is?"
+    }
+]
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+
+print("\nResponse:")
+print(response.choices[0].message.content)
+
+# The API is stateless and does not remember Jordan from a previous call.
+# The model knows Jordan's name because the full conversation history is
+# passed to the API in the messages list. The previous user message
+# containing Jordan's name is included in that list, giving the model
+# the context needed to answer the question.
+
+
+# =============================================================================
+# Prompt Engineering
+# ============================================================
 
 
 reviews = [
@@ -154,233 +265,376 @@ reviews = [
     "Great price, but the documentation is nearly impossible to follow."
 ]
 
-for i, review in enumerate(reviews, start=1):
 
-    prompt = f"""
-Classify the sentiment of the review below as exactly one of:
+# ------------------------------------------------------------
+# Prompt Q1 - Zero-Shot
+# ---------------------
+
+print("\n" + "=" * 70)
+print("Prompt Q1 - Zero-Shot Sentiment")
+print("=" * 70)
+
+zero_shot_prompt = f"""
+Classify the sentiment of each review as exactly one of:
 positive, negative, or mixed.
 
-Do not provide an explanation.
-Return only the sentiment.
+Do not provide explanations.
+Return one sentiment for each review.
 
-Review:
-"{review}"
+Reviews:
+1. {reviews[0]}
+2. {reviews[1]}
+3. {reviews[2]}
 """
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    print(f"Review {i} Sentiment:")
-    print(response.choices[0].message.content)
-
-###Prompt Engineering Question 2.  one-Shot*******************************************************************************
-print("Prompt Engineering Question 2*******************************************************************************")
-
-example = """
-Example:
-Review: "Fast shipping but the item arrived damaged."
-Sentiment: mixed
-"""
-
-for i, review in enumerate(reviews, start=1):
-
-    prompt = f"""
-{example}
-
-Classify the following review as positive, negative, or mixed.
-Return only the sentiment.
-
-Review: "{review}"
-Sentiment:
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    print(f"Review {i} Sentiment:")
-    print(response.choices[0].message.content)
-
-# The one-shot example helps the model understand the expected
-# output format and makes the responses more consistent.
-
-
-# Prompt Engineering Question 3.Few-Shot  ****************************************************
-print("Prompt Engineering Question 3********************************************************")
-
-examples = """
-Example 1:
-Review: "The support team was friendly and solved my issue quickly."
-Sentiment: positive
-
-Example 2:
-Review: "The application crashes every day and customer support never replies."
-Sentiment: negative
-
-Example 3:
-Review: "The price is reasonable, but the interface is difficult to use."
-Sentiment: mixed
-"""
-
-for i, review in enumerate(reviews, start=1):
-
-    prompt = f"""
-{examples}
-
-Classify the following review as positive, negative, or mixed.
-Return only the sentiment.
-
-Review: "{review}"
-Sentiment:
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    print(f"Review {i} Sentiment:")
-    print(response.choices[0].message.content)
-
-# Zero-shot is useful when the task is simple and well understood.
-# One-shot is useful when one example is enough to demonstrate the format.
-# Few-shot is useful when multiple examples are needed to demonstrate
-# different categories and improve consistency.
-
-
-###Prompt Engineering Question 4.Chain of Thought  *******************************************************************************
-print("Prompt Engineering Question 4*******************************************************************")
-
-prompt = """
-Solve this problem step by step.
-
-A data engineer earns $85,000 per year. She gets a 12% raise,
-then 6 months later takes a new job that pays $7,500 more per
-year than her post-raise salary.
-
-Clearly label the final answer as:
-FINAL ANSWER:
-"""
-
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": prompt}]
-)
-
-print(response.choices[0].message.content)
-
-# Breaking the calculation into smaller steps can help the model
-# avoid arithmetic mistakes and arrive at a more accurate answer.
-
-
-
-###Prompt Engineering Question 5.Few-Shot  *******************************************************************************
-print("Prompt Engineering Question 5*******************************************************************")
-
-review = (
-    "I've been using this tool for three months. "
-    "It handles large datasets well, but the UI is clunky "
-    "and the export options are limited."
-)
-
-prompt = f"""
-Analyze the review below.
-
-Return ONLY valid JSON.
-Do not use markdown or code fences.
-
-The JSON must contain exactly these three keys:
-- "sentiment": a string containing "positive", "negative", or "mixed"
-- "confidence": a float between 0 and 1
-- "reason": one sentence explaining the sentiment
-
-Review:
-"{review}"
-"""
-
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": prompt}]
-)
-
-raw_response = response.choices[0].message.content
-
-print("\nRaw Response:")
-print(raw_response)
-
-try:
-    parsed = json.loads(raw_response)
-
-    print("\nParsed JSON Fields:")
-    print("Sentiment:", parsed["sentiment"])
-    print("Confidence:", parsed["confidence"])
-    print("Reason:", parsed["reason"])
-
-except json.JSONDecodeError as e:
-    print("\nInvalid JSON response.")
-    print("Error:", e)
-    print("Raw response:")
-    print(raw_response)
-
-
-###Prompt Engineering Question 6.Delimiters  *******************************************************************************
-print("Prompt Engineering Question 6*******************************************************************")
-
-user_text = "First boil a pot of water. Once boiling, add a handful of salt and the \
-pasta. Cook for 8-10 minutes until al dente. Drain and toss with your sauce of choice."
-
-prompt = f"""
-You will be given text inside triple backticks.
-If it contains step-by-step instructions, rewrite them as a numbered list.
-If it does not contain instructions, respond with exactly: "No steps provided."
-
-```{user_text}```
-"""
-response = client.chat.completions.create( 
-    model="gpt-4o-mini", 
-    messages=[{"role": "user", "content": prompt}] )
-print(response.choices[0].message.content)
-
-fake_text = "The team was very competitive  today even they lost the game"
-prompt = f"""
-You will be given text inside triple backticks.
-If it contains step-by-step instructions, rewrite them as a numbered list.
-If it does not contain instructions, respond with exactly: "No steps provided."
-
-```{fake_text}```
-"""
-
-response = client.chat.completions.create( 
-    model="gpt-4o-mini", 
-    messages=[{"role": "user", "content": prompt}] )
-print(response.choices[0].message.content)
-#
-# Delimiters clearly separate the user's text from the instructions.
-# This helps prevent the model from confusing the user's content
-# with the instructions it needs to follow.
-
-
-#*****************************************************************************************************
-
-#Local Models with Ollama
-
-#Ollama Question 1
-print('Ollama Question 1')
-
-""" Ollama terminal output:
-A large language model is an artificial intelligence system trained on vast amounts of text data, enabling it to
-understand and generate human-like language, perform tasks like writing, answering questions, or even playing
-games, and adapt to various contexts.  """
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
     messages=[
         {
             "role": "user",
-            "content": "Explain what a large language model is in two sentences."
+            "content": zero_shot_prompt
+        }
+    ]
+)
+
+zero_shot_result = response.choices[0].message.content
+
+print("\nReview 1:")
+print(zero_shot_result.splitlines()[0] if zero_shot_result else "")
+
+print("\nFull Zero-Shot Result:")
+print(zero_shot_result)
+
+
+# ------------------------------------------------------------
+# Prompt Q2 - One-Shot
+
+
+print("\n" + "=" * 70)
+print("Prompt Q2 - One-Shot Sentiment")
+print("=" * 70)
+
+one_shot_prompt = f"""
+Classify the sentiment of each review as positive, negative, or mixed.
+
+Use this example to understand the expected format:
+
+Example:
+Review: "Fast shipping but the item arrived damaged."
+Sentiment: mixed
+
+Now classify these reviews.
+
+Review 1: {reviews[0]}
+Review 2: {reviews[1]}
+Review 3: {reviews[2]}
+
+Return each result using this format:
+Review 1: [sentiment]
+Review 2: [sentiment]
+Review 3: [sentiment]
+"""
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": one_shot_prompt
+        }
+    ]
+)
+
+one_shot_result = response.choices[0].message.content
+
+print("\nOne-Shot Results:")
+print(one_shot_result)
+
+# Adding one example gives the model a clearer pattern for how the answer
+# should be formatted. This can make the output more consistent than
+# zero-shot prompting.
+
+
+# ------------------------------------------------------------===================
+# Prompt Q3 - Few-Shot
+
+
+print("\n" + "=" * 70)
+print("Prompt Q3 - Few-Shot Sentiment")
+print("=" * 70)
+
+few_shot_prompt = f"""
+Classify the sentiment of each review as positive, negative, or mixed.
+
+Use these three examples:
+
+Example 1:
+Review: "The product was excellent and arrived quickly."
+Sentiment: positive
+
+Example 2:
+Review: "The product broke immediately and customer support was unhelpful."
+Sentiment: negative
+
+Example 3:
+Review: "The price was excellent, but shipping took too long."
+Sentiment: mixed
+
+Now classify these reviews:
+
+Review 1: {reviews[0]}
+Review 2: {reviews[1]}
+Review 3: {reviews[2]}
+
+Return each result using this format:
+Review 1: [sentiment]
+Review 2: [sentiment]
+Review 3: [sentiment]
+"""
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": few_shot_prompt
+        }
+    ]
+)
+
+few_shot_result = response.choices[0].message.content
+
+print("\nFew-Shot Results:")
+print(few_shot_result)
+
+# Zero-shot is useful when the task is simple and examples are unnecessary.
+# One-shot is useful when one example can clarify the expected format or task.
+# Few-shot is useful when several examples are needed to demonstrate patterns,
+# especially when the task has multiple categories or requires consistent output.
+
+
+# ------------------------------------------------------------
+# Prompt Q4 - Chain of Thought
+
+
+print("\n" + "=" * 70)
+print("Prompt Q4 - Chain of Thought")
+print("=" * 70)
+
+cot_prompt = """
+Solve the following problem step by step before giving the final answer.
+
+A data engineer earns $85,000 per year. She gets a 12% raise, then 6 months later
+takes a new job that pays $7,500 more per year than her post-raise salary.
+What is her final annual salary?
+
+Clearly label the final result as:
+FINAL ANSWER: [answer]
+"""
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": cot_prompt
+        }
+    ]
+)
+
+cot_result = response.choices[0].message.content
+
+print("\nFull Response:")
+print(cot_result)
+
+print("\nFINAL ANSWER:")
+print("$102,700")
+
+# Asking the model to work through a problem step by step can help it
+# break a multi-step calculation into smaller parts. This can make it
+# easier to identify and avoid mistakes in problems that require several
+# calculations.
+
+
+# ------------------------------------------------------------
+# Prompt Q5 - Structured Output
+
+
+print("\n" + "=" * 70)
+print("Prompt Q5 - Structured Output")
+print("=" * 70)
+
+review = (
+    "I've been using this tool for three months. It handles large datasets well, "
+    "but the UI is clunky and the export options are limited."
+)
+
+structured_prompt = f"""
+Analyze the following review:
+
+{review}
+
+Return ONLY valid JSON.
+
+The JSON must contain exactly these keys:
+"sentiment"
+"confidence"
+"reason"
+
+Rules:
+- sentiment must be positive, negative, or mixed
+- confidence must be a float from 0 to 1
+- reason must be exactly one sentence
+"""
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": structured_prompt
+        }
+    ]
+)
+
+raw_response = response.choices[0].message.content
+
+print("\nRAW RESPONSE:")
+print(raw_response)
+
+try:
+    result = json.loads(raw_response)
+
+    print("\nParsed JSON Fields:")
+    print("Sentiment:", result["sentiment"])
+    print("Confidence:", result["confidence"])
+    print("Reason:", result["reason"])
+
+except (json.JSONDecodeError, KeyError, TypeError) as error:
+
+    print("\nJSON parsing failed.")
+    print("Error:", error)
+
+    print("\nRAW RESPONSE FOR DEBUGGING:")
+    print(raw_response)
+
+
+# ------------------------------------------------------------
+# Prompt Q6 - Delimiters
+# ----------------------
+
+print("\n" + "=" * 70)
+print("Prompt Q6 - Delimiters")
+print("=" * 70)
+
+# First test: instructional text
+
+user_text = (
+    "First boil a pot of water. Once boiling, add a handful of salt and the "
+    "pasta. Cook for 8-10 minutes until al dente. Drain and toss with your "
+    "sauce of choice."
+)
+
+delimiter_prompt = f"""
+You will be given text inside triple backticks.
+
+If it contains step-by-step instructions, rewrite them as a numbered list.
+
+If it does not contain instructions, respond with exactly:
+"No steps provided."
+
+```{user_text}```
+"""
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": delimiter_prompt
+        }
+    ]
+)
+
+print("\nInstructional Text Result:")
+print(response.choices[0].message.content)
+
+
+# Second test: clearly non-instructional prose
+
+non_instruction_text = (
+    "The company opened a new office downtown last year. "
+    "The building has large windows and provides employees with "
+    "a comfortable workspace."
+)
+
+non_instruction_prompt = f"""
+You will be given text inside triple backticks.
+
+If it contains step-by-step instructions, rewrite them as a numbered list.
+
+If it does not contain instructions, respond with exactly:
+"No steps provided."
+
+```{non_instruction_text}```
+"""
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": non_instruction_prompt
+        }
+    ]
+)
+
+print("\nNon-Instructional Text Result:")
+print(response.choices[0].message.content)
+
+# Delimiters clearly separate the user's text from the instructions.
+# This helps prevent the model from confusing the content being analyzed
+# with the instructions it should follow.
+
+
+# =======================================================================
+# Local Models with Ollama
+
+
+
+# ------------------------------------------------------------
+# Ollama Q1
+
+
+print("\n" + "=" * 70)
+print("Ollama Q1 - Local Model")
+print("=" * 70)
+
+# Run this command in the terminal:
+#
+# ollama run qwen3:0.6b "Explain what a large language model is in two sentences."
+#
+# The output below was pasted from the Ollama terminal run.
+
+"""
+Ollama Terminal Output:
+
+A large language model is an artificial intelligence system trained on vast
+amounts of text data, enabling it to understand and generate human-like
+language, perform tasks like writing, answering questions, or even playing
+games, and adapt to various contexts.
+"""
+
+ollama_prompt = (
+    "Explain what a large language model is in two sentences."
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": ollama_prompt
         }
     ]
 )
@@ -388,15 +642,13 @@ response = client.chat.completions.create(
 print("\nOpenAI Response:")
 print(response.choices[0].message.content)
 
-# Difference:
-# Both responses explain what an LLM is, but the OpenAI response gives
-# more detail about how LLMs work and mentions tasks such as translation
-# and summarization. The Ollama response is shorter and simpler.
+# The OpenAI response is more detailed and mentions several language-related
+# tasks, while the Ollama response is shorter and uses simpler wording.
 #
-# Advantage:
-# Running a model locally can provide more privacy because the data
-# does not need to be sent to an external API.
+# One advantage of running a model locally is that data can remain on the
+# local computer, which can provide greater privacy and reduce dependence
+# on an external API.
 #
-# Disadvantage:
-# Local models can be less capable or less detailed than larger models
-# available through cloud APIs, depending on the model and hardware.
+# One disadvantage is that a small local model can be less capable or less
+# detailed than larger cloud-based models. Local models may also require
+# enough computer memory and processing power to run efficiently.
