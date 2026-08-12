@@ -66,12 +66,23 @@ print("API Question 4***********************************************************
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "Explain how neural networks work."}],
-    max_tokens=15)
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain how neural networks work."
+        }
+    ],
+    max_tokens=15
+)
+
+print("\nResponse with max_tokens=15:")
 print(response.choices[0].message.content)
 
-# the response is incomplete and stoped at 15 token.
-# i may use token to reduce the cost and have shorter and fast responses
+# The response is cut off because max_tokens limits the number of tokens
+# the model can generate. In a real application, max_tokens can help
+# control response length, reduce unnecessary output, and manage costs.
+
+
 ###########################################################################################
 #System Messages and Personas
 
@@ -109,8 +120,11 @@ response = client.chat.completions.create(
 print("\nStrict Instructor Response:")
 print(response.choices[0].message.content)
 
-# The response changes because the system message changes
-# the personality, tone, and style of the assistant
+# The response changed because the system message changed the assistant's
+# personality. The first system message made the assistant patient and
+# encouraging, while the second made it strict, concise, and technical.
+# This changed the tone and style of the response even though the user
+# asked the exact same question.
 
 ###System Question 2*******************************************************************************
 print("System Question 2*******************************************************************************")
@@ -356,7 +370,7 @@ print(response.choices[0].message.content)
 #Ollama Question 1
 print('Ollama Question 1')
 
-""" Ollama Output:
+""" Ollama terminal output:
 A large language model is an artificial intelligence system trained on vast amounts of text data, enabling it to
 understand and generate human-like language, perform tasks like writing, answering questions, or even playing
 games, and adapt to various contexts.  """
@@ -374,13 +388,15 @@ response = client.chat.completions.create(
 print("\nOpenAI Response:")
 print(response.choices[0].message.content)
 
-
 # Difference:
 # Both responses explain what an LLM is, but the OpenAI response gives
-# more detail about how LLMs work and mentions tasks like translation
+# more detail about how LLMs work and mentions tasks such as translation
 # and summarization. The Ollama response is shorter and simpler.
+#
 # Advantage:
 # Running a model locally can provide more privacy because the data
 # does not need to be sent to an external API.
+#
 # Disadvantage:
-# Local models can be less capable or less detailed than larger
+# Local models can be less capable or less detailed than larger models
+# available through cloud APIs, depending on the model and hardware.

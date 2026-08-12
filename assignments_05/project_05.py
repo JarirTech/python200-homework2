@@ -10,8 +10,6 @@ from openai import OpenAI
 
 
 load_dotenv()
-print("API key loaded:", bool(os.getenv("OPENAI_API_KEY")))
-
 client = OpenAI()
 
 SYSTEM_PROMPT = """
@@ -97,46 +95,49 @@ def rewrite_bullets(bullets: list[str]) -> list[dict]:
     # Calling the model
     response = get_completion(messages)
 
-    # Keeping the original response for debugging
-    raw_response = response
-
-    print("\nRAW RESPONSE:")
-    print(raw_response)
+    
 
     # Removing code fences if the model adds them
     cleaned_response = (
-        raw_response
-        .replace("```json", "")
-        .replace("```", "")
-        .strip()
+    response
+    .replace("```json", "")
+    .replace("```", "")
+    .strip()
     )
 
     try:
-        # Parse the JSON into a Python list
+        # Parse the JSON response
         results = json.loads(cleaned_response)
 
-        # Making sure the response is a list
+    # Making sure the result is a list
         if not isinstance(results, list):
-            raise ValueError("Expected a JSON list.")
+            print("\nJSON response was not a list.")
+            print("Raw response:")
+            print(response)
+            return []
 
         print("\nRewritten Resume Bullets:")
+        print("=" * 60)
 
-        # Printing each original bullet next to its improved version
+        # Printing original and improved versions together
         for item in results:
-            print(f"\nORIGINAL: {item['original']}")
-            print(f"IMPROVED: {item['improved']}")
+            print(f"ORIGINAL : {item['original']}")
+            print(f"IMPROVED : {item['improved']}")
             print("-" * 50)
 
-        # Returning the parsed list
+        # Return the parsed list
         return results
 
-    except (json.JSONDecodeError, ValueError, KeyError) as e:
-        print("\nCould not process the JSON response.")
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        print("\nJSON parsing failed.")
         print("Error:", e)
-        print("\nRaw response:")
-        print(raw_response)
+        print("Raw response:")
+        print(response)
 
         return []
+
+
+    
 # --- Testing ---
 
 starter_bullets = [
@@ -278,91 +279,93 @@ def run_chatbot():
 
     while True:
 
-        user_input = input("You: ").strip()
+    user_input = input("You: ").strip()
 
-        # Exit chatbot
-        if user_input.lower() in {"quit", "exit"}:
-            print("\nJob Application Helper: Good luck with your applications!")
-            break
+    if user_input.lower() in {"quit", "exit"}:
+        print("\nJob Application Helper: Good luck with your applications!")
+        break
 
-        # Ignore empty input
-        if not user_input:
-            continue
+    if not user_input:
+        continue
 
-        # Check the user's message with moderation
-        if not is_safe(user_input):
-            continue
+    # Moderation check
+    if not is_safe(user_input):
+        continue
 
-        # -------------------------------------------------
-        # Resume bullet feature
-        # -------------------------------------------------
-        if "bullet" in user_input.lower() or "resume" in user_input.lower():
+    # Resume bullet feature
+    if "bullet" in user_input.lower() or "resume" in user_input.lower():
 
-            print("\nPaste your bullet points below, one per line.")
-            print("Type 'DONE' when finished.\n")
+        messages.append({
+            "role": "user",
+            "content": user_input
+        })
 
-            raw_bullets = []
+        print("\nPaste your bullet points below, one per line.")
+        print("Type 'DONE' when finished.\n")
 
-            while True:
-                line = input().strip()
+        raw_bullets = []
 
-                if line.upper() == "DONE":
-                    break
+        while True:
+            line = input().strip()
 
-                if line:
-                    raw_bullets.append(line)
+            if line.upper() == "DONE":
+                break
 
-            if raw_bullets:
-                rewritten_bullets = rewrite_bullets(raw_bullets)
+            if line:
+                raw_bullets.append(line)
 
-                print("\nJob Application Helper:")
-                print("Your rewritten bullets are shown above.")
+        rewritten_bullets = rewrite_bullets(raw_bullets)
 
-            else:
-                print("\nNo bullet points were provided.")
+        messages.append({
+            "role": "assistant",
+            "content": json.dumps(rewritten_bullets)
+        })
 
-        # -------------------------------------------------
-        # Cover letter feature
-        # -------------------------------------------------
-        elif "cover letter" in user_input.lower():
+    # Cover letter feature
+    elif "cover letter" in user_input.lower():
 
-            job_title = input(
-                "\nJob Application Helper: What is the job title? "
-            ).strip()
+        messages.append({
+            "role": "user",
+            "content": user_input
+        })
 
-            background = input(
-                "Job Application Helper: Briefly describe your background: "
-            ).strip()
+        job_title = input(
+            "\nJob Application Helper: What is the job title? "
+        ).strip()
 
-            result = generate_cover_letter(job_title, background)
+        background = input(
+            "Job Application Helper: Briefly describe your background: "
+        ).strip()
 
-            print("\nGenerated Cover Letter Opening:")
-            print(result)
+        result = generate_cover_letter(job_title, background)
 
-            print("\nReminder: Review and edit this before submitting it.")
+        print("\nGenerated Cover Letter Opening:")
+        print(result)
 
-        # -------------------------------------------------
-        # Regular conversation
-        # -------------------------------------------------
-        else:
+        print("\nReminder: Review and edit this before submitting it.")
 
-            # 1. Append the user's message to conversation history
-            messages.append({
-                "role": "user",
-                "content": user_input
-            })
+        messages.append({
+            "role": "assistant",
+            "content": result
+        })
 
-            # 2. Send the conversation history to the model
-            reply = get_completion(messages)
+    # Regular conversation
+    else:
 
-            # 3. Print the assistant's response
-            print(f"\nJob Application Helper: {reply}\n")
+        messages.append({
+            "role": "user",
+            "content": user_input
+        })
 
-            # 4. Append the assistant's response to conversation history
-            messages.append({
-                "role": "assistant",
-                "content": reply
-            })
+        reply = get_completion(messages)
+
+        print(f"\nJob Application Helper: {reply}\n")
+
+        messages.append({
+            "role": "assistant",
+            "content": reply
+        })
+
 
 
 # --- Main Program ---
