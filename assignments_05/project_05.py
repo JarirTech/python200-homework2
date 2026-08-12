@@ -3,8 +3,6 @@
 # Task 1: Setup and System Prompt
 
 import json
-import os
-
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -254,12 +252,9 @@ print("Unsafe input result:", is_safe(unsafe_test))
 
 #*****************************************************************************
 
-#Task 5: The Chatbot Loop
-
-
+# Task 5: The Chatbot Loop
 
 def run_chatbot():
-
 
     # Initialize conversation history
     messages = [
@@ -279,93 +274,110 @@ def run_chatbot():
 
     while True:
 
-    user_input = input("You: ").strip()
+        user_input = input("You: ").strip()
 
-    if user_input.lower() in {"quit", "exit"}:
-        print("\nJob Application Helper: Good luck with your applications!")
-        break
+        # Exit chatbot
+        if user_input.lower() in {"quit", "exit"}:
+            print("\nJob Application Helper: Good luck with your applications!")
+            break
 
-    if not user_input:
-        continue
+        # Skip empty input
+        if not user_input:
+            continue
 
-    # Moderation check
-    if not is_safe(user_input):
-        continue
+        # Moderation check
+        if not is_safe(user_input):
+            continue
 
-    # Resume bullet feature
-    if "bullet" in user_input.lower() or "resume" in user_input.lower():
+        
+        # Resume bullet feature
+        
+        if "bullet" in user_input.lower() or "resume" in user_input.lower():
 
-        messages.append({
-            "role": "user",
-            "content": user_input
-        })
+            # Add user's request to conversation history
+            messages.append({
+                "role": "user",
+                "content": user_input
+            })
 
-        print("\nPaste your bullet points below, one per line.")
-        print("Type 'DONE' when finished.\n")
+            print("\nPaste your bullet points below, one per line.")
+            print("Type 'DONE' when finished.\n")
 
-        raw_bullets = []
+            raw_bullets = []
 
-        while True:
-            line = input().strip()
+            while True:
+                line = input().strip()
 
-            if line.upper() == "DONE":
-                break
+                if line.upper() == "DONE":
+                    break
 
-            if line:
-                raw_bullets.append(line)
+                if line:
+                    raw_bullets.append(line)
 
-        rewritten_bullets = rewrite_bullets(raw_bullets)
+            # Rewrite the bullets
+            rewritten_bullets = rewrite_bullets(raw_bullets)
 
-        messages.append({
-            "role": "assistant",
-            "content": json.dumps(rewritten_bullets)
-        })
+            # Add assistant response to conversation history
+            messages.append({
+                "role": "assistant",
+                "content": json.dumps(rewritten_bullets)
+            })
 
-    # Cover letter feature
-    elif "cover letter" in user_input.lower():
+        
+        # Cover letter feature
+        
+        elif "cover letter" in user_input.lower():
 
-        messages.append({
-            "role": "user",
-            "content": user_input
-        })
+            # Add user's request to conversation history
+            messages.append({
+                "role": "user",
+                "content": user_input
+            })
 
-        job_title = input(
-            "\nJob Application Helper: What is the job title? "
-        ).strip()
+            job_title = input(
+                "\nJob Application Helper: What is the job title? "
+            ).strip()
 
-        background = input(
-            "Job Application Helper: Briefly describe your background: "
-        ).strip()
+            background = input(
+                "Job Application Helper: Briefly describe your background: "
+            ).strip()
 
-        result = generate_cover_letter(job_title, background)
+            # Generate cover letter opening
+            result = generate_cover_letter(job_title, background)
 
-        print("\nGenerated Cover Letter Opening:")
-        print(result)
+            print("\nGenerated Cover Letter Opening:")
+            print(result)
 
-        print("\nReminder: Review and edit this before submitting it.")
+            print("\nReminder: Review and edit this before submitting it.")
 
-        messages.append({
-            "role": "assistant",
-            "content": result
-        })
+            # Add assistant response to conversation history
+            messages.append({
+                "role": "assistant",
+                "content": result
+            })
 
-    # Regular conversation
-    else:
+        
+        # Regular conversation
+        
+        else:
 
-        messages.append({
-            "role": "user",
-            "content": user_input
-        })
+            # Add user message to conversation history
+            messages.append({
+                "role": "user",
+                "content": user_input
+            })
 
-        reply = get_completion(messages)
+            # Send the entire conversation history to the model
+            reply = get_completion(messages)
 
-        print(f"\nJob Application Helper: {reply}\n")
+            # Print the assistant response
+            print(f"\nJob Application Helper: {reply}\n")
 
-        messages.append({
-            "role": "assistant",
-            "content": reply
-        })
-
+            # Add assistant response to conversation history
+            messages.append({
+                "role": "assistant",
+                "content": reply
+            })
 
 
 # --- Main Program ---
@@ -379,34 +391,11 @@ if __name__ == "__main__":
 
 #Task 6: Ethics Reflection
 
-# --- Task 6: Ethics Reflection ---
-
-# AI job application tools can sometimes give biased advice or favor
-
+# AI job application tools can sometimes produce biased advice or favor
 # certain writing styles, industries, or types of experience. They can
-
 # also generate incorrect or exaggerated information if users do not
-
-# carefully review the results.
-
-#
-
-# One important guardrail is reminding users to review and edit all
-
-# generated content before submitting it to an employer. Another
-
-# important guardrail is telling the AI not to invent skills,
-
-# accomplishments, numbers, or work experience that the user does not
-
-# actually have.
-
-#
-
-# Users should also use their own judgment because hiring practices
-
-# and expectations can differ between industries and employers.
-
-# AI should help improve a job application, but the final application
-
-# should accurately represent the applicant's real experience and skills.
+# carefully review the output. One important guardrail is to instruct
+# the assistant not to invent skills, accomplishments, or experience
+# and to remind users to review and edit everything before submitting it.
+# Users should also use their own judgment because hiring practices and
+# expectations can differ between industries and employers.
