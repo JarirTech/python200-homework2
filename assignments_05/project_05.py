@@ -308,91 +308,69 @@ print(unsafe_test)
 print("Result:", is_safe(unsafe_test))
 
 
-# ============================================================
-# Task 5: The Chatbot Loop
+# ==================================================================
 
+
+# Task 5: The Chatbot Loop
+# ===============================================================
 
 def run_chatbot():
-
     # Initialize conversation history with the system prompt.
     messages = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT
-        }
+        {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
-    print("\n" + "=" * 50)
+    print("=" * 50)
     print("Job Application Helper")
     print("=" * 50)
 
     print("I can help you with:")
     print("  1. Rewriting resume bullet points")
     print("  2. Drafting a cover letter opening")
-    print("  3. Any other questions about your application")
+    print("  3. General job application questions")
 
     print("\nType 'quit' at any time to exit.\n")
 
     while True:
-
         # Get user input.
         user_input = input("You: ").strip()
 
-        # ------------------------------------------------------------
-        # 1. Handle exit
-        
-
+        # ----------------------------------------------------------------
+        # Handle exit
+        # ----------------------------------------------------
         if user_input.lower() in {"quit", "exit"}:
-
             print(
                 "\nJob Application Helper: "
                 "Good luck with your applications!"
             )
-
             break
 
-        # ------------------------------------------------------
-        # 2. Skip empty input
-        
-
+        # ----------------------------------------------------==
+        # Skip empty input
+        # -------------------------------------------------------------
         if not user_input:
             continue
 
-        # -------------------------------------------------------------
-        # 3. Moderation check
-        
-
+        # -----------------------------------------------------------
+        # Moderation check
+        # ----------------------------------------------------
         if not is_safe(user_input):
             continue
 
-        # ----------------------------------------------------
-        # 4. Resume bullet feature
-        
-
-        if (
-            "bullet" in user_input.lower()
-            or "resume" in user_input.lower()
-        ):
-
-            # Add the user's request to conversation history.
-            messages.append({
-                "role": "user",
-                "content": user_input
-            })
+        # =====================================================================
+        # Resume Bullet Point Feature
+        # ====================================================
+        if "bullet" in user_input.lower() or "resume" in user_input.lower():
 
             print(
                 "\nJob Application Helper: "
                 "Paste your bullet points below, one per line."
             )
-
-            print(
-                "When you're done, type 'DONE' on its own line.\n"
-            )
+            print("When you're done, type 'DONE' on its own line.\n")
 
             raw_bullets = []
 
             while True:
-
                 line = input().strip()
 
                 if line.upper() == "DONE":
@@ -401,34 +379,77 @@ def run_chatbot():
                 if line:
                     raw_bullets.append(line)
 
-            # Rewrite the user's bullet points.
-            rewritten_bullets = rewrite_bullets(raw_bullets)
-
-            # Save the result in the conversation history.
-            messages.append({
-                "role": "assistant",
-                "content": (
-                    "I rewrote the resume bullets. "
-                    + json.dumps(rewritten_bullets)
+            # Make sure the user entered at least one bullet.
+            if not raw_bullets:
+                print(
+                    "\nJob Application Helper: "
+                    "No bullet points were provided.\n"
                 )
-            })
+                continue
 
-            print(
-                "\nReminder: Review and edit the rewritten bullets "
-                "before submitting them."
+            # Add the user's bullet-rewrite request to conversation history.
+            bullet_request = (
+                f"{user_input}\n\n"
+                "Bullet points:\n"
+                + "\n".join(f"- {bullet}" for bullet in raw_bullets)
             )
 
-        # ----------------------------------------------------
-        # 5. Cover letter feature
-        
-
-        elif "cover letter" in user_input.lower():
-
-            # Add the user's request to conversation history.
             messages.append({
                 "role": "user",
-                "content": user_input
+                "content": bullet_request
             })
+
+            # Rewrite the bullets using the helper function.
+            rewritten_bullets = rewrite_bullets(raw_bullets)
+
+            # Check whether the function returned results.
+            if not rewritten_bullets:
+                print(
+                    "\nJob Application Helper: "
+                    "I could not rewrite those bullet points.\n"
+                )
+
+                # Record the failed interaction.
+                messages.append({
+                    "role": "assistant",
+                    "content": (
+                        "I could not rewrite the provided resume "
+                        "bullet points."
+                    )
+                })
+
+                continue
+
+            # Build a readable assistant response for the conversation history.
+            bullet_response_parts = []
+
+            for item in rewritten_bullets:
+                original = item["original"]
+                improved = item["improved"]
+
+                bullet_response_parts.append(
+                    f"ORIGINAL: {original}\n"
+                    f"IMPROVED: {improved}"
+                )
+
+            bullet_response = "\n\n".join(bullet_response_parts)
+
+            # Print the results.
+            print("\nJob Application Helper: Rewritten Resume Bullets\n")
+            print(bullet_response)
+
+            # Add the assistant's response to conversation history.
+            messages.append({
+                "role": "assistant",
+                "content": bullet_response
+            })
+
+            print()
+
+        # ============================================================
+        # Cover Letter Feature
+        # ====================================================
+        elif "cover letter" in user_input.lower():
 
             job_title = input(
                 "\nJob Application Helper: "
@@ -440,39 +461,51 @@ def run_chatbot():
                 "Briefly describe your background: "
             ).strip()
 
+            # Add the user's cover-letter request to conversation history.
+            cover_letter_request = (
+                f"{user_input}\n\n"
+                f"Job title: {job_title}\n"
+                f"Background: {background}"
+            )
+
+            messages.append({
+                "role": "user",
+                "content": cover_letter_request
+            })
+
             # Generate the cover letter opening.
             result = generate_cover_letter(
                 job_title,
                 background
             )
 
-            print("\nGenerated Cover Letter Opening:")
+            # Print the generated result.
+            print("\nGenerated Cover Letter Opening:\n")
             print(result)
 
-            print(
-                "\nReminder: Review and edit this before "
-                "submitting it."
-            )
-
-            # Save the assistant response in conversation history.
+            # Add the assistant's response to conversation history.
             messages.append({
                 "role": "assistant",
                 "content": result
             })
 
-        # ----------------------------------------------------
-        # 6. Regular conversation
-        
+            print(
+                "\nReminder: Review and edit this before submitting it."
+            )
+            print()
 
+        # ====================================================
+        # Regular Conversation
+        # =================================================================
         else:
 
-            # Append the user's message to the conversation history.
+            # Add the user's message to conversation history.
             messages.append({
                 "role": "user",
                 "content": user_input
             })
 
-            # Send the entire conversation history to the model.
+            # Send the complete conversation history to the model.
             reply = get_completion(messages)
 
             # Print the assistant's response.
@@ -480,36 +513,30 @@ def run_chatbot():
                 f"\nJob Application Helper: {reply}\n"
             )
 
-            # Append the assistant's response to the conversation history.
+            # Add the assistant's response to conversation history.
             messages.append({
                 "role": "assistant",
                 "content": reply
             })
 
 
+# ========================================================================
+# Running the chatbot
 # ============================================================
-# Main Program
-
 
 if __name__ == "__main__":
     run_chatbot()
 
-
-# ============================================================
+# ===============================================================
 # Task 6: Ethics Reflection
 
 
 #
-# AI job application tools can produce biased advice because models are
-# trained on text written by and about many different groups of people,
-# and the generated advice may favor certain communication styles,
-# industries, or cultural backgrounds. A job seeker could also submit
-# incorrect, exaggerated, or invented information if they copy the
-# model's output without reviewing it carefully. This could damage the
-# applicant's credibility and could cause an employer to receive
-# information that is not accurate. One important guardrail is to tell
-# the assistant never to invent experience, skills, accomplishments,
-# or credentials and to remind users to review and edit all generated
-# content before submitting it. Users should also use their own judgment
-# because hiring practices and expectations can vary between industries
-# and employers.
+# AI job application tools can produce biased advice because their training data
+# may favor certain communication styles, industries, or cultural backgrounds.
+# A job seeker could also submit inaccurate or exaggerated information if they
+# do not carefully review the generated content before sending it to an employer.
+# One important guardrail is to clearly remind users to review and edit every
+# response and verify that it accurately represents their real experience and skills.
+# I would also keep moderation enabled to reduce the risk of harmful or inappropriate
+# requests.

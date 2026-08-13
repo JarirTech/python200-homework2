@@ -7,16 +7,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 
-
-# Setup
-
-
 load_dotenv()
 client = OpenAI()
-
-
-
-# The Chat Completions API
 
 
 
@@ -268,18 +260,20 @@ reviews = [
 
 # ------------------------------------------------------------
 # Prompt Q1 - Zero-Shot
-# ---------------------
 
-print("\n" + "=" * 70)
-print("Prompt Q1 - Zero-Shot Sentiment")
-print("=" * 70)
 
-zero_shot_prompt = f"""
+
+reviews = [
+    "The onboarding process was smooth and the team was welcoming.",
+    "The software crashes constantly and support never responds.",
+    "Great price, but the documentation is nearly impossible to follow."
+]
+
+prompt = f"""
 Classify the sentiment of each review as exactly one of:
 positive, negative, or mixed.
 
-Do not provide explanations.
-Return one sentiment for each review.
+Return exactly three lines, one sentiment per review, in the same order.
 
 Reviews:
 1. {reviews[0]}
@@ -289,22 +283,18 @@ Reviews:
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[
-        {
-            "role": "user",
-            "content": zero_shot_prompt
-        }
-    ]
+    messages=[{"role": "user", "content": prompt}]
 )
 
-zero_shot_result = response.choices[0].message.content
+results = response.choices[0].message.content.strip().splitlines()
 
-print("\nReview 1:")
-print(zero_shot_result.splitlines()[0] if zero_shot_result else "")
+print("\nPROMPT Q1 — ZERO-SHOT RESULTS")
 
-print("\nFull Zero-Shot Result:")
-print(zero_shot_result)
+for i, result in enumerate(results, start=1):
+    print(f"Review {i}: {result}")
 
+# No examples are provided. The model classifies each review independently.
+# The results are printed separately with the review number.
 
 # ------------------------------------------------------------
 # Prompt Q2 - One-Shot
@@ -414,110 +404,103 @@ print(few_shot_result)
 
 
 # ------------------------------------------------------------
-# Prompt Q4 - Chain of Thought
 
+# Prompt Q4 — Chain of Thought
 
-print("\n" + "=" * 70)
-print("Prompt Q4 - Chain of Thought")
-print("=" * 70)
-
-cot_prompt = """
-Solve the following problem step by step before giving the final answer.
+math_prompt = """
+Solve the following problem step by step.
+After your explanation, write the final result on a separate line beginning
+with exactly: FINAL ANSWER:
 
 A data engineer earns $85,000 per year. She gets a 12% raise, then 6 months later
 takes a new job that pays $7,500 more per year than her post-raise salary.
 What is her final annual salary?
-
-Clearly label the final result as:
-FINAL ANSWER: [answer]
 """
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[
-        {
-            "role": "user",
-            "content": cot_prompt
-        }
-    ]
+    messages=[{"role": "user", "content": math_prompt}]
 )
 
-cot_result = response.choices[0].message.content
+full_response = response.choices[0].message.content
 
-print("\nFull Response:")
-print(cot_result)
+print("\nPROMPT Q4 — CHAIN OF THOUGHT")
+print("Full Response:")
+print(full_response)
 
-print("\nFINAL ANSWER:")
-print("$102,700")
+# Find the model-generated final answer
+final_answer = "Not found"
 
-# Asking the model to work through a problem step by step can help it
-# break a multi-step calculation into smaller parts. This can make it
-# easier to identify and avoid mistakes in problems that require several
-# calculations.
+for line in full_response.splitlines():
+    if line.strip().upper().startswith("FINAL ANSWER:"):
+        final_answer = line.strip()
+        break
+
+print("\nModel-Generated Final Answer:")
+print(final_answer)
+
+# Asking the model to work through the problem step by step can help it
+# break the calculation into smaller steps and reduce mistakes on
+# multi-step problems.
 
 
 # ------------------------------------------------------------
-# Prompt Q5 - Structured Output
 
+# Prompt Q5 — Structured Output
 
-print("\n" + "=" * 70)
-print("Prompt Q5 - Structured Output")
-print("=" * 70)
+import json
 
 review = (
     "I've been using this tool for three months. It handles large datasets well, "
     "but the UI is clunky and the export options are limited."
 )
 
-structured_prompt = f"""
-Analyze the following review:
-
-{review}
+prompt = f"""
+Analyze the following review.
 
 Return ONLY valid JSON.
+Do not include markdown or any explanation outside the JSON.
 
 The JSON must contain exactly these keys:
-"sentiment"
-"confidence"
-"reason"
+- "sentiment"
+- "confidence"
+- "reason"
 
-Rules:
-- sentiment must be positive, negative, or mixed
-- confidence must be a float from 0 to 1
-- reason must be exactly one sentence
+"confidence" must be a float from 0 to 1.
+"reason" must be exactly one sentence.
+
+Review:
+{review}
 """
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[
-        {
-            "role": "user",
-            "content": structured_prompt
-        }
-    ]
+    messages=[{"role": "user", "content": prompt}]
 )
 
 raw_response = response.choices[0].message.content
 
-print("\nRAW RESPONSE:")
+print("\nPROMPT Q5 — STRUCTURED OUTPUT")
+print("RAW RESPONSE:")
 print(raw_response)
 
 try:
-    result = json.loads(raw_response)
+    data = json.loads(raw_response)
 
     print("\nParsed JSON Fields:")
-    print("Sentiment:", result["sentiment"])
-    print("Confidence:", result["confidence"])
-    print("Reason:", result["reason"])
+    print(f"Sentiment: {data['sentiment']}")
+    print(f"Confidence: {data['confidence']}")
+    print(f"Reason: {data['reason']}")
 
-except (json.JSONDecodeError, KeyError, TypeError) as error:
-
+except (json.JSONDecodeError, KeyError, TypeError) as e:
     print("\nJSON parsing failed.")
-    print("Error:", error)
-
-    print("\nRAW RESPONSE FOR DEBUGGING:")
+    print(f"Error: {e}")
+    print("RAW RESPONSE FOR DEBUGGING:")
     print(raw_response)
 
+
+# The model is instructed to return only valid JSON with the required keys.
+# The raw response is printed first so it can be inspected if JSON parsing fails.
 
 # ------------------------------------------------------------
 # Prompt Q6 - Delimiters
