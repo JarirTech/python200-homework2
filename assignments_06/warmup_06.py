@@ -2,10 +2,12 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 
-if load_dotenv():
+load_dotenv()
+
+if os.getenv("OPENAI_API_KEY"):
     print("API key loaded successfully.")
 else:
-    print("Warning: could not load API key. Check your .env file.")
+    print("Warning: OPENAI_API_KEY not found.")
 
 
 from llama_index.core import (
@@ -82,18 +84,27 @@ print('Concepts Question 2 *****************************************************
 
 print('Concepts Question 3 ********************************************************')
 
-#steps = [
-# "Receive the user's query",: User writes the question in natural language
-# "Embed the user's query",: the model emedbeds the questions into  an embeding vector
-#"Extract text from source documents",: The module extract text from the pdf source or other documents
-#"Split text into chunks",: The large text extracted got split in chunks
-#"Convert text chunks into embeddings",: each chunks get converted to embeding vector
-#"Retrieve the most relevant chunks",: the module compares the question to the chunks and retreive the most similar one
-# "Inject retrieved chunks into the prompt",: the retreived chunk added into the prompt
-#"Generate a response from the LLM",: The response is generated and user got the resonse
-#     
-# ]
-
+# 1. Load documents
+#    The documents are loaded so the system has information to search.
+#
+# 2. Split documents into chunks
+#    Large documents are divided into smaller pieces that are easier
+#    to search and use.
+#
+# 3. Create embeddings
+#    Each text chunk is converted into a vector that represents its meaning.
+#
+# 4. Store/index the embeddings
+#    The embeddings are stored in an index so similar information
+#    can be found quickly.
+#
+# 5. Retrieve relevant chunks
+#    The user's question is compared with the stored embeddings to
+#    find the most relevant information.
+#
+# 6. Generate an answer
+#    The retrieved information is given to the language model so it
+#    can generate an answer based on the documents.
 
 #Keyword RAG**********************************************************
 
@@ -151,17 +162,15 @@ documents = {
     "hiring.txt": "We are currently hiring baristas and shift supervisors. Send your resume to jobs@groundworkcoffee.com.",
     "loyalty.txt": "Join our loyalty program to earn one point per dollar spent. Redeem 100 points for a free drink of your choice.",
 }
-query = "What are your hours on the weekend?"
+query = "What are your hours on weekends?"
 result = simple_keyword_retrieval(query, documents, verbose=True)
 
 print("\nretrieval Document:")
 print(result[0][0])
 
-# The correct document should be hours.txt because the query asks about
-# weekend hours, and hours.txt contains the weekend opening and closing times.
-# The original version incorrectly selected loyalty.txt because the common
-# word "your" was treated as a keyword. I added "your" to the stopword list
-# so common words do not interfere with retrieval.
+# The selected document was hours.txt because it contains the
+# information about weekend hours. Keyword retrieval worked because
+# the query and document use similar words.
 
 #Keyword RAG**********************************************************
 #Keyword Question 2
@@ -170,14 +179,11 @@ print('Keyword RAG Question 2 **************************************************
 query_2 = "Do you have anything without caffeine?"
 result_2=  simple_keyword_retrieval(query_2, documents, verbose=True)
 
-# The retriever selected "None found" because none of the filtered
-# query keywords appeared in the documents.
-# Keyword RAG did not get the correct result because it only compares
-# exact words. The query asks about caffeine-free drinks, but the
-# documents do not use the exact phrase "without caffeine."
-# Semantic retrieval would work better because it compares meaning,
-# so it could connect "without caffeine" with available drink options.
-
+# Keyword RAG did not find a matching document because the important
+# words in the question did not overlap with the document text.
+# No useful document was selected. Semantic retrieval would work
+# better because it compares the meaning of the question instead
+# of only matching exact words.
 
 #Keyword RAG**********************************************************
 #Keyword Question 3

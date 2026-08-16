@@ -102,7 +102,6 @@ for q in questions:
 
     print("\nTOP RETRIEVED SOURCE NODE:")
 
-    # Print the top retrieved source node
     if response.source_nodes:
         node = response.source_nodes[0]
 
@@ -119,7 +118,6 @@ for q in questions:
         )
     else:
         print("No source nodes were retrieved.")
-
 
 # Step 4 Reflection:
 #
@@ -148,11 +146,7 @@ print(failure_response)
 
 print("\nALL THREE RETRIEVED SOURCE NODES:")
 
-for i, node in enumerate(
-    failure_response.source_nodes,
-    start=1
-):
-
+for i, node in enumerate(failure_response.source_nodes[:3],start=1):
     print(f"\nNode {i}")
 
     print(
@@ -160,16 +154,12 @@ for i, node in enumerate(
         f"{node.metadata.get('file_name', 'Unknown')}"
     )
 
-    print(
-        f"Similarity Score: "
-        f"{node.score}"
-    )
+    print(f"Similarity Score: {node.score}")
 
     print(
         f"Text Preview: "
         f"{node.text[:200]}"
     )
-
 
 # Step 5 Reflection:
 #
