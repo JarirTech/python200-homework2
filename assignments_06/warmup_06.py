@@ -107,7 +107,7 @@ def simple_keyword_retrieval(query, documents, verbose=True):
     stopwords = {
         "a", "an", "the", "and", "or", "in", "on", "of", "for", "to", "is",
         "are", "was", "were", "by", "with", "at", "from", "that", "this",
-        "as", "be", "it", "its", "their", "they", "we", "you", "our"
+        "as", "be", "it", "its", "their", "they", "we", "you", "your", "our"
     }
     translator = str.maketrans("", "", string.punctuation)
 
@@ -157,11 +157,11 @@ result = simple_keyword_retrieval(query, documents, verbose=True)
 print("\nretrieval Document:")
 print(result[0][0])
 
-# The keyword retriever selected loyalty.txt because "your" was the only
-# overlapping keyword. This shows a limitation of keyword retrieval:
-# common words can produce an incorrect match even when another document
-# is more relevant to the question.
-
+# The correct document should be hours.txt because the query asks about
+# weekend hours, and hours.txt contains the weekend opening and closing times.
+# The original version incorrectly selected loyalty.txt because the common
+# word "your" was treated as a keyword. I added "your" to the stopword list
+# so common words do not interfere with retrieval.
 
 #Keyword RAG**********************************************************
 #Keyword Question 2
@@ -169,48 +169,57 @@ print('Keyword RAG Question 2 **************************************************
 
 query_2 = "Do you have anything without caffeine?"
 result_2=  simple_keyword_retrieval(query_2, documents, verbose=True)
-# No overlapping keywords found.
-#Keyword RAG does not fully understand meaning. The document never
-#mentions caffeine-free drinks directly, so the retrieval failed.
 
-#Semantic retrieval would work better because it can understand that
-#"without caffeine" is related to beverage options even if the exact
-#words do not appear in the text.
+# The retriever selected "None found" because none of the filtered
+# query keywords appeared in the documents.
+# Keyword RAG did not get the correct result because it only compares
+# exact words. The query asks about caffeine-free drinks, but the
+# documents do not use the exact phrase "without caffeine."
+# Semantic retrieval would work better because it compares meaning,
+# so it could connect "without caffeine" with available drink options.
+
 
 #Keyword RAG**********************************************************
 #Keyword Question 3
 print('Keyword RAG Question 3 ********************************************************')
 
+# Prediction:
+# I predict loyalty.txt because the question is about signing up for
+# rewards, and loyalty.txt contains information about the loyalty program.
+# However, I expect keyword retrieval may fail because the document
+# may not contain the exact words "sign up".
+
 query_3 = "How do I sign up for rewards?"
 result_3 = simple_keyword_retrieval(query_3, documents, verbose=True)
 
-# No overlapping keywords found. for filtred words the module coludn't found any match and this is 
-# normal I believe for RAG simple keyword
+# Keyword retrieval failed because the filtered query words did not
+# overlap with the wording used in loyalty.txt. This shows that
+# keyword retrieval can miss relevant documents when different words
+# express the same idea.
+
 ###############################################################################################################################
 #Semantic RAG Concepts
 #Semantic Question 1
 print('#Semantic Question 1**************************************************************************')
 
-#What is a vector embedding? (1-2 sentences):
-
-### A vector embedding converts text into a list of numbers that represents
-# the meaning of the text. Texts with similar meanings usually have
+# 1. What is a vector embedding?
+#
+# A vector embedding converts text into a list of numbers that
+# represents its meaning. Texts with similar meanings usually have
 # embeddings that are closer together in vector space.
 
-### Two text chunks have cosine similarity scores of 0.85 and 0.30 with a given query. Which chunk is more
-#  relevant, and what does that number tell you about the relationship between the texts?
+# 2. Two text chunks have cosine similarity scores of 0.85 and 0.30.
+#
+# The chunk with a score of 0.85 is more relevant because it has a
+# stronger similarity to the query than the chunk with a score of 0.30.
 
-# Cosine similarity measures how similar two vectors are.
-# A score of 0.85 indicates a much stronger similarity to the query
-# than a score of 0.30, so the 0.85 chunk is the more relevant match.
+# 3. Why can semantic search find a relevant chunk even when none of
+# the exact words from the query appear?
+#
+# Semantic search compares meaning rather than only exact words.
+# For example, "car" and "automobile" use different words but have
+# similar meanings, so their embeddings can be close together.
 
-
-### Why can semantic search find a relevant chunk even when none of the exact words from the query appear 
-# in the chunk?
-# because  semantic RAG gives same score for the meaning like car and automobile will get same number
-# it doesn't compares text but compares meaning. 
-
-#Semantic RAG Concepts
 #Semantic Question 2
 print('#Semantic Question 2**************************************************************************')
 
@@ -427,16 +436,8 @@ relevancy_result1 = relevancy_evaluator.evaluate_response(
     response=response1
 )
 
-print("\nQUERY1")
-print(q1)
 
-print("\nFaithfulness Score:")
-print(faithfulness_result1.passing)
 
-print("Relevancy Score:")
-print(relevancy_result1.passing)
-
-# query2
 q2 = "What is BrightLeaf's favorite sports team?"
 
 response2 = query_engine.query(q2)
@@ -447,28 +448,61 @@ relevancy_result2 = relevancy_evaluator.evaluate_response(
     response=response2
 )
 
-print("-----------------------------------------------------------------")
+print("\nQUERY1")
+print(q1)
+
+print("\nFaithfulness Score:")
+print(faithfulness_result1.score)
+
+print("Faithfulness Passing:")
+print(faithfulness_result1.passing)
+
+print("\nRelevancy Score:")
+print(relevancy_result1.score)
+
+print("Relevancy Passing:")
+print(relevancy_result1.passing)
+
+
+print("\n" + "-" * 65)
 
 print("\nQUERY2")
 print(q2)
 
 print("\nFaithfulness Score:")
+print(faithfulness_result2.score)
+
+print("Faithfulness Passing:")
 print(faithfulness_result2.passing)
 
-print("Relevancy Score:")
+print("\nRelevancy Score:")
+print(relevancy_result2.score)
+
+print("Relevancy Passing:")
 print(relevancy_result2.passing)
 
 ###
-# #The first query received True for both scores because the
-# response matched the documents and answered the question well.
 
-# The second query received True for faithfulness but False
-# for relevancy because the documents did not contain information
-# about sports teams.
+#What does a faithfulness score of 1.0 mean? What would a score of 0.0 indicate?
 
-# This shows that a response can stay grounded in the documents
-# while still failing to answer the user's question.
+# A faithfulness score of 1.0 means the answer is fully supported by
+# the retrieved information. A score of 0.0 means the answer is not
+# supported by the provided context.
 #
-# LLM-as-a-judge means using another AI model to check how good
-# a response is. It is useful for RAG because answers can be
-# correct in different ways
+#What does a relevancy score measure, and how is it different from faithfulness?
+
+# Relevancy measures whether the answer actually addresses the user's question. Faithfulness is about being supported by the documents,
+# while relevancy is about answering the question.
+#
+#Did the scores change between your two queries? If so, why do you think that happened?
+
+# In my results, Query 1 received 1.0 for both faithfulness and relevancy because the documents contained information about BrightLeaf's employee
+# benefits, and the answer matched that information.
+#
+#What is the "LLM-as-a-judge" approach, and why is it used for RAG evaluation instead of a simple accuracy metric?
+
+# Query 2 received 0.0 for both scores because the BrightLeaf documents did not contain information about the company's favorite sports team.
+# This shows that the RAG system could not provide a supported or relevant answer when the information was missing from the documents.
+#
+# LLM-as-a-judge means using another language model to evaluate the quality of an AI-generated answer. It is useful for RAG because answers can be
+# judged for qualities such as faithfulness and relevance, which are harder to measure with a simple correct/incorrect accuracy score.
