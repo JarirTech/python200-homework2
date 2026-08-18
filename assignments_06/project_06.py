@@ -1,9 +1,12 @@
-# =============================================================================
-# Part 2: Mini-Project - Groundwork Coffee Co. Q&A Assistant
-# =============================================================================
+# Assignment 06 - Part 2
+# Mini-Project: Groundwork Coffee Co. Q&A Assistant
+
+
+# ===========================================================================
+# Step 1: Setup
+# ===========================================================================
 
 from dotenv import load_dotenv
-import os
 from pathlib import Path
 
 from llama_index.core import (
@@ -16,27 +19,22 @@ from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
 
 
-# =============================================================================
-# Step 1: Setup
-# =============================================================================
-
 print("\nStep 1 ***********************************************************")
 
-# Load the API key from the .env file.
+
+# Load the API key from .env
 load_dotenv()
 
-if os.getenv("OPENAI_API_KEY"):
-    print("API key loaded successfully.")
-else:
-    print("Warning: OPENAI_API_KEY not found.")
+print("API key loaded successfully.")
 
 
-# Path to the Groundwork Coffee documents.
-docs_dir = Path(
-    "lessons/06_AI_augmentation/resources/groundwork_docs"
-)
+# Groundwork document directory
+#
+# This relative path assumes the script is run from the Python 200
+# project directory.
+docs_dir = Path("../../python-200/lessons/06_AI_augmentation/resources/groundwork_docs")
 
-# Make sure the document directory exists before using it.
+# Verify that the document directory exists before using it.
 assert docs_dir.exists(), (
     f"Document directory not found: {docs_dir}"
 )
@@ -46,7 +44,7 @@ assert docs_dir.is_dir(), (
 )
 
 
-# Configure the language model and embedding model.
+# Configure the LLM and embedding model.
 Settings.llm = OpenAI(
     model="gpt-4o-mini"
 )
@@ -56,38 +54,44 @@ Settings.embed_model = OpenAIEmbedding(
 )
 
 
-# =============================================================================
+# ===========================================================================
 # Step 2: Load the Documents
-# =============================================================================
+# ===========================================================================
 
 print("\nStep 2 ***********************************************************")
+
 
 documents = SimpleDirectoryReader(
     str(docs_dir)
 ).load_data()
 
+
 print(f"\nLoaded {len(documents)} documents:")
 
-# Print the filename of every loaded document.
+
+# Print the name of every loaded document.
 for document in documents:
     print(
         f"- {document.metadata.get('file_name', 'Unknown')}"
     )
 
 
-# =============================================================================
+# ===========================================================================
 # Step 3: Build the Index and Query Engine
-# =============================================================================
+# ===========================================================================
 
 print("\nStep 3 ***********************************************************")
+
 
 index = VectorStoreIndex.from_documents(
     documents
 )
 
+
 query_engine = index.as_query_engine(
     similarity_top_k=3
 )
+
 
 print(
     "Index built successfully. "
@@ -95,11 +99,12 @@ print(
 )
 
 
-# =============================================================================
+# ===========================================================================
 # Step 4: Query the Assistant
-# =============================================================================
+# ===========================================================================
 
 print("\nStep 4 ***********************************************************")
+
 
 questions = [
     "What are Groundwork's hours on weekends?",
@@ -113,10 +118,13 @@ questions = [
 for question in questions:
 
     print("\n" + "=" * 70)
+
     print("QUESTION:")
     print(question)
 
-    response = query_engine.query(question)
+    response = query_engine.query(
+        question
+    )
 
     print("\nANSWER:")
     print(response)
@@ -125,11 +133,10 @@ for question in questions:
 
     if response.source_nodes:
 
-        # The first node is the highest-ranked retrieved source.
         node = response.source_nodes[0]
 
         print(
-            f"Document: "
+            "Document: "
             f"{node.metadata.get('file_name', 'Unknown')}"
         )
 
@@ -138,7 +145,8 @@ for question in questions:
         )
 
         print(
-            f"Text Preview: {node.text[:200]}"
+            "Text Preview: "
+            f"{node.text[:200]}"
         )
 
     else:
@@ -147,112 +155,115 @@ for question in questions:
 
 # Step 4 Reflection:
 #
-# The assistant gave mostly accurate and confident answers.
-# The strongest retrieved documents usually matched the questions well.
-# One interesting result was that retrieval does not always put the
-# best document first, so the retrieved source should still be checked.
+# The assistant gave mostly accurate answers and sounded confident.
+# The answers matched the Groundwork documents. One surprising result
+# was that the weekend-hours question had our_story.txt as the top node,
+# even though faq.txt contains the hours. This shows that the top retrieved
+# node is not always the best source.
 
 
-# =============================================================================
+# ===========================================================================
 # Step 5: Find a Failure
-# =============================================================================
+# ===========================================================================
 
 print("\nStep 5 ***********************************************************")
 
-# This question is intentionally difficult because the Groundwork
-# documents do not contain financial information about bankruptcy.
-failure_query = "Is Groundwork facing bankruptcy?"
+
+failure_query = (
+    "Is Groundwork Coffee Co. facing bankruptcy?"
+)
+
 
 failure_response = query_engine.query(
     failure_query
 )
 
+
 print("\nQUESTION:")
 print(failure_query)
+
 
 print("\nFULL RESPONSE:")
 print(failure_response)
 
+
 print("\nALL THREE RETRIEVED SOURCE NODES:")
 
-# Print all three retrieved nodes.
-for i, node in enumerate(
-    failure_response.source_nodes[:3],
-    start=1
-):
 
-    print(f"\nNode {i}")
+if failure_response.source_nodes:
 
-    print(
-        f"Document: "
-        f"{node.metadata.get('file_name', 'Unknown')}"
-    )
+    for i, node in enumerate(
+        failure_response.source_nodes[:3],
+        start=1
+    ):
 
-    print(
-        f"Similarity Score: {node.score}"
-    )
+        print(f"\nNode {i}")
 
-    print(
-        f"Text Preview: {node.text[:200]}"
-    )
+        print(
+            "Document: "
+            f"{node.metadata.get('file_name', 'Unknown')}"
+        )
+
+        print(
+            f"Similarity Score: {node.score}"
+        )
+
+        print(
+            "Text Preview: "
+            f"{node.text[:200]}"
+        )
+
+else:
+    print("No source nodes were retrieved.")
 
 
 # Step 5 Reflection:
 #
-# I asked about bankruptcy because the Groundwork documents do not
-# contain financial information. Retrieval returned unrelated documents
-# such as the company story, catering information, and menu.
+# I asked about bankruptcy because the Groundwork documents do not contain
+# financial information, so I expected the system to struggle.
 #
-# The model did not have evidence to answer the question and said that
-# there was no information about bankruptcy. Its answer sounded fairly
-# confident, which shows why users should not automatically trust an AI
-# response just because it sounds reasonable.
+# Retrieval failed to find a source about bankruptcy. The retrieved chunks
+# were from unrelated documents such as the story, wholesale/catering,
+# and menu documents.
 #
-# To improve the system, I would add a rule that tells the model to say
-# "I don't have enough information" when the retrieved documents do not
-# support an answer. I could also add a minimum similarity-score
-# threshold before allowing the model to answer.
+# The model still sounded confident and answered that there was no
+# information showing that Groundwork was facing bankruptcy. This is
+# important because a confident tone does not mean the answer is correct.
+#
+# I would improve the system by adding a confidence or similarity threshold
+# and telling the model to say "I don't have enough information" when the
+# retrieved documents are not relevant. I would also make the system cite
+# its sources so the user can verify important answers.
 
 
-# =============================================================================
+# ===========================================================================
 # Step 6: Reflection
-# =============================================================================
+# ===========================================================================
 
 print("\nStep 6 ***********************************************************")
 
 
-# Step 6 Reflection:
+# Step 6 Reflection
 #
-# 1. Framework comparison
+# 1. Framework comparison:
 #
-# The manual semantic RAG lesson required many lines of code for
-# chunking, embeddings, indexing, and retrieval. This LlamaIndex
-# implementation uses roughly 80-100 lines for the main RAG workflow,
-# while LlamaIndex handles much of the chunking, embedding, indexing,
-# and retrieval for us. This shows that a framework can save time and
-# make a RAG application easier to build and maintain.
+# In the manual semantic RAG lesson, chunking, embedding, indexing, and
+# retrieval required many lines of code. In this project, the main
+# LlamaIndex implementation took about 10-15 lines for loading the
+# documents, creating the index, and creating the query engine.
+# This shows that a framework can greatly reduce the amount of code needed
+# and make a RAG application easier to build and maintain.
 #
+# 2. Another useful use case:
 #
-# 2. Another business use case
+# A company could build an employee support assistant using HR policies,
+# benefits documents, and employee handbooks. Employees could ask questions
+# without searching through many internal documents themselves.
 #
-# A useful example would be an employee support assistant for a company.
-# It could use HR policies, benefits documents, employee handbooks,
-# and company procedures to answer employee questions quickly.
+# 3. RAG failure mode:
 #
-#
-# 3. RAG failure mode
-#
-# One failure mode RAG cannot completely prevent is hallucination.
-# Even when the correct information is retrieved, the language model
-# can misunderstand the context, combine information incorrectly, or
-# give an answer that is not fully supported by the documents.
-# Important answers should therefore still be checked.
-
-
-# =============================================================================
-# End of Project
-# =============================================================================
-
-print("\n" + "=" * 70)
-print("Groundwork Coffee Co. Q&A Assistant completed.")
-print("=" * 70)
+# RAG cannot completely prevent hallucination. Even when the correct
+# information is retrieved, the language model can misunderstand it,
+# combine information incorrectly, or give an answer that is not fully
+# supported by the documents. This is why important answers should still
+# be verified.
