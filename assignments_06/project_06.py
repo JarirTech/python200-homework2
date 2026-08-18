@@ -1,4 +1,4 @@
-# Mini-Project - Groundwork Coffee Co. Q&A Assistant ---
+# --- Part 2: Mini-Project - Groundwork Coffee Co. Q&A Assistant ---
 
 from dotenv import load_dotenv
 from pathlib import Path

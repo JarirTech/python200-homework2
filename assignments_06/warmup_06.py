@@ -19,13 +19,13 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 # --- RAG Concepts ---
 print("\n" + "=" * 70)
 print("Part 1: Warmup Exercises")
-
+print("=" * 70)
 
 
 # --- Concepts Q1 ---
 print("\nConcepts Question 1")
-
 print("-" * 70)
+
 # Scenario A: RAG
 # RAG is the best choice because the legal team has many internal PDFs
 # that are updated often. The assistant can retrieve the newest policy
@@ -44,7 +44,7 @@ print("-" * 70)
 
 # --- Concepts Q2 ---
 print("\nConcepts Question 2")
-
+print("-" * 70)
 
 # A confidently wrong answer is more harmful because a user may believe
 # it and act on it without checking. "I am not sure" tells the user to
@@ -56,10 +56,10 @@ print("\nConcepts Question 2")
 # The confident tone also matters because people often trust answers
 # that sound clear and certain, even when the information is wrong.
 
-print("-" * 70)
+
 # --- Concepts Q3 ---
 print("\nConcepts Question 3")
-
+print("-" * 70)
 
 # Complete RAG pipeline in the correct order:
 #
@@ -106,7 +106,7 @@ print("\nConcepts Question 3")
 # --- Keyword RAG ---
 print("\n" + "=" * 70)
 print("Keyword RAG")
-
+print("=" * 70)
 
 
 def simple_keyword_retrieval(query, documents, verbose=True):
@@ -183,10 +183,10 @@ documents = {
     ),
 }
 
-print("-" * 70)
+
 # --- Keyword Q1 ---
 print("\nKeyword Question 1")
-
+print("-" * 70)
 
 query = "What are your hours on weekends?"
 result = simple_keyword_retrieval(query, documents, verbose=True)
@@ -198,11 +198,10 @@ print(result[0][0])
 # "weekends" and the information about weekend hours. Keyword retrieval
 # found it because there was a keyword overlap.
 
-print("-" * 70)
 
 # --- Keyword Q2 ---
 print("\nKeyword Question 2")
-
+print("-" * 70)
 
 query_2 = "Do you have anything without caffeine?"
 result_2 = simple_keyword_retrieval(query_2, documents, verbose=True)
@@ -217,10 +216,10 @@ print(result_2[0][0])
 # Semantic retrieval would do better because it compares meaning,
 # so it can connect related ideas even when exact words differ.
 
-print("-" * 70)
+
 # --- Keyword Q3 ---
 print("\nKeyword Question 3")
-
+print("-" * 70)
 
 # Prediction before running the code:
 # I predict loyalty.txt because it contains the loyalty/rewards information.
@@ -242,12 +241,12 @@ print(result_3[0][0])
 # --- Semantic RAG ---
 print("\n" + "=" * 70)
 print("Semantic RAG")
-
+print("=" * 70)
 
 
 # --- Semantic Q1 ---
 print("\nSemantic Question 1")
-
+print("-" * 70)
 
 # 1. A vector embedding converts text into a list of numbers that
 #    represents its meaning. Texts with similar meanings tend to have
@@ -260,11 +259,11 @@ print("\nSemantic Question 1")
 # 3. Semantic search compares meaning instead of only exact words.
 #    For example, "car" and "automobile" are different words but have
 #    similar meanings, so their embeddings can be close together.
-print("-" * 70)
+
 
 # --- Semantic Q2 ---
 print("\nSemantic Question 2")
-
+print("-" * 70)
 
 # | Feature                    | Keyword RAG                       | Semantic RAG                         |
 # |----------------------------|-----------------------------------|--------------------------------------|
@@ -278,7 +277,7 @@ print("\nSemantic Question 2")
 # --- LlamaIndex ---
 print("\n" + "=" * 70)
 print("LlamaIndex")
-
+print("=" * 70)
 
 # Use a relative path so the file can be moved to another copy of the repo.
 PDF_DIR = Path("../lessons/06_AI_augmentation/resources/brightleaf_pdfs")
@@ -373,7 +372,7 @@ for question in questions:
 # --- LlamaIndex Q2 ---
 print("\n" + "=" * 70)
 print("LlamaIndex Question 2")
-
+print("=" * 70)
 
 q2 = "What employee benefits does BrightLeaf offer?"
 
@@ -419,7 +418,7 @@ for node in response_k5.source_nodes:
 # --- LlamaIndex Q3 ---
 print("\n" + "=" * 70)
 print("LlamaIndex Question 3")
-
+print("=" * 70)
 
 q3 = "What is the plan for BrightLeaf to sponsor Manchester United?"
 
