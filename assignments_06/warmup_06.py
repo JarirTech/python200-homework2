@@ -5,9 +5,8 @@ import os
 import string
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
+
 # .env setup
-# ---------------------------------------------------------------------------
 
 load_dotenv()
 
@@ -17,9 +16,6 @@ else:
     print("Warning: OPENAI_API_KEY not found.")
 
 
-# ---------------------------------------------------------------------------
-# Imports
-# ---------------------------------------------------------------------------
 
 from pypdf import PdfReader
 
@@ -39,9 +35,6 @@ from llama_index.core.evaluation import (
 )
 
 
-# ---------------------------------------------------------------------------
-# LlamaIndex setup
-# ---------------------------------------------------------------------------
 
 Settings.llm = OpenAI(model="gpt-4o-mini")
 
@@ -53,9 +46,9 @@ Settings.embed_model = OpenAIEmbedding(
 print("\nPart 1: Warmup Exercises")
 
 
-# ===========================================================================
+# ====================================================================================
 # CONCEPTS
-# ===========================================================================
+
 
 # --- Concepts Question 1 ---
 
@@ -148,7 +141,6 @@ print("=" * 70)
 
 # ===========================================================================
 # KEYWORD RAG
-# ===========================================================================
 
 print("\n" + "=" * 70)
 print("Keyword RAG")
@@ -241,9 +233,9 @@ def simple_keyword_retrieval(query, documents, verbose=True):
     return [("None found", "No relevant content.")]
 
 
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------===========
 # Keyword Question 1
-# ---------------------------------------------------------------------------
+
 
 print("\nKeyword Question 1")
 print("-" * 70)
@@ -267,7 +259,7 @@ print(result_1[0][0])
 
 # ---------------------------------------------------------------------------
 # Keyword Question 2
-# ---------------------------------------------------------------------------
+
 
 print("\nKeyword Question 2")
 print("-" * 70)
@@ -293,7 +285,6 @@ print(result_2[0][0])
 
 # ---------------------------------------------------------------------------
 # Keyword Question 3
-# ---------------------------------------------------------------------------
 
 print("\nKeyword Question 3")
 print("-" * 70)
@@ -326,7 +317,7 @@ print(result_3[0][0])
 
 # ===========================================================================
 # SEMANTIC RAG
-# ===========================================================================
+
 
 print("\n" + "=" * 70)
 print("Semantic RAG")
@@ -335,7 +326,7 @@ print("=" * 70)
 
 # ---------------------------------------------------------------------------
 # Semantic Question 1
-# ---------------------------------------------------------------------------
+
 
 print("\nSemantic Question 1")
 print("-" * 70)
@@ -373,16 +364,16 @@ print("-" * 70)
 # | Relevance score?    | Number of matching keywords         | Similarity score              |
 
 
-# ===========================================================================
+# =============================================================================================
 # LLAMAINDEX
-# ===========================================================================
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Warmup")
 print("=" * 70)
 
 
-# Use a relative path so the file can run from the Python 200 project folder.
+
 PDF_DIR = Path("../../python-200/lessons/06_AI_augmentation/resources/brightleaf_pdfs")
 
 
@@ -392,7 +383,7 @@ assert PDF_DIR.is_dir(), f"PDF path is not a directory: {PDF_DIR}"
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 1
-# ---------------------------------------------------------------------------
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 1")
@@ -477,13 +468,11 @@ for question in brightleaf_questions:
 #
 # Query 1 returned employee_benefits.pdf as the strongest source.
 # Query 2 returned security_policy.pdf as the strongest source.
-# The answers were detailed and the top retrieved documents were
-# relevant to the questions.
 
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 2
-# ---------------------------------------------------------------------------
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 2")
@@ -548,14 +537,12 @@ for node in response_k5.source_nodes:
 #
 # With top_k=5, the answer was still good, but additional retrieved
 # documents were less relevant.
-#
-# More retrieved context is not always better. Extra irrelevant context
-# can add noise, so the best top_k value depends on the question.
+
 
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 3
-# ---------------------------------------------------------------------------
+# 
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 3")
@@ -601,7 +588,7 @@ for i, node in enumerate(
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 4
-# ---------------------------------------------------------------------------
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 4")
