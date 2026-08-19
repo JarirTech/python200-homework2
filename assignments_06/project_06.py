@@ -1,10 +1,7 @@
-# Assignment 06 - Part 2
 # Mini-Project: Groundwork Coffee Co. Q&A Assistant
 
 
-# ===========================================================================
-# Step 1: Setup
-# ===========================================================================
+
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -27,11 +24,6 @@ load_dotenv()
 
 print("API key loaded successfully.")
 
-
-# Groundwork document directory
-#
-# This relative path assumes the script is run from the Python 200
-# project directory.
 docs_dir = Path("../../python-200/lessons/06_AI_augmentation/resources/groundwork_docs")
 
 # Verify that the document directory exists before using it.
@@ -56,7 +48,7 @@ Settings.embed_model = OpenAIEmbedding(
 
 # ===========================================================================
 # Step 2: Load the Documents
-# ===========================================================================
+
 
 print("\nStep 2 ***********************************************************")
 
@@ -69,7 +61,7 @@ documents = SimpleDirectoryReader(
 print(f"\nLoaded {len(documents)} documents:")
 
 
-# Print the name of every loaded document.
+# Printing the name of every loaded document.
 for document in documents:
     print(
         f"- {document.metadata.get('file_name', 'Unknown')}"
@@ -78,7 +70,7 @@ for document in documents:
 
 # ===========================================================================
 # Step 3: Build the Index and Query Engine
-# ===========================================================================
+
 
 print("\nStep 3 ***********************************************************")
 
@@ -101,7 +93,7 @@ print(
 
 # ===========================================================================
 # Step 4: Query the Assistant
-# ===========================================================================
+
 
 print("\nStep 4 ***********************************************************")
 
@@ -164,7 +156,7 @@ for question in questions:
 
 # ===========================================================================
 # Step 5: Find a Failure
-# ===========================================================================
+
 
 print("\nStep 5 ***********************************************************")
 
@@ -238,7 +230,7 @@ else:
 
 # ===========================================================================
 # Step 6: Reflection
-# ===========================================================================
+
 
 print("\nStep 6 ***********************************************************")
 

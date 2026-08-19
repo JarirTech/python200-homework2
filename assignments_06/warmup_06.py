@@ -5,9 +5,8 @@ import os
 import string
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
+
 # .env setup
-# ---------------------------------------------------------------------------
 
 load_dotenv()
 
@@ -17,9 +16,6 @@ else:
     print("Warning: OPENAI_API_KEY not found.")
 
 
-# ---------------------------------------------------------------------------
-# Imports
-# ---------------------------------------------------------------------------
 
 from pypdf import PdfReader
 
@@ -39,9 +35,6 @@ from llama_index.core.evaluation import (
 )
 
 
-# ---------------------------------------------------------------------------
-# LlamaIndex setup
-# ---------------------------------------------------------------------------
 
 Settings.llm = OpenAI(model="gpt-4o-mini")
 
@@ -53,9 +46,9 @@ Settings.embed_model = OpenAIEmbedding(
 print("\nPart 1: Warmup Exercises")
 
 
-# ===========================================================================
+# ====================================================================================
 # CONCEPTS
-# ===========================================================================
+
 
 # --- Concepts Question 1 ---
 
@@ -101,58 +94,54 @@ print("=" * 70)
 
 print("\n" + "=" * 70)
 print("Concepts Question 3")
-print("=" * 70)
 
-# The provided steps:
+
+
 #
+# Original steps:
 # steps = [
-#     "Load documents",
-#     "Split documents into chunks",
-#     "Create embeddings",
-#     "Store/index the embeddings",
-#     "Retrieve relevant chunks",
-#     "Generate an answer",
+#     "Generate a response from the LLM",
+#     "Extract text from source documents",
 #     "Receive the user's query",
-#     "Embed the query",
+#     "Retrieve the most relevant chunks",
+#     "Convert text chunks into embeddings",
+#     "Inject retrieved chunks into the prompt",
+#     "Split text into chunks",
+#     "Embed the user's query",
 # ]
 #
 # Correct order:
+# 1. Extract text from source documents
+#    Get the text from the PDFs or other source documents.
 #
-# 1. Load documents
-#    The system loads the documents that contain the information it can use.
+# 2. Split text into chunks
+#    Break the documents into smaller pieces that can be retrieved.
 #
-# 2. Split documents into chunks
-#    Large documents are divided into smaller pieces that are easier to search.
+# 3. Convert text chunks into embeddings
+#    Turn each chunk into a vector that represents its meaning.
 #
-# 3. Create embeddings
-#    Each document chunk is converted into a vector representing its meaning.
+# 4. Receive the user's query
+#    The system receives the question from the user.
 #
-# 4. Store/index the embeddings
-#    The embeddings are stored in an index so relevant chunks can be found.
+# 5. Embed the user's query
+#    Convert the question into an embedding so it can be compared
+#    with the document embeddings.
 #
-# 5. Receive the user's query
-#    The system receives the question that the user wants answered.
+# 6. Retrieve the most relevant chunks
+#    Find the document chunks that are most similar to the query.
 #
-# 6. Embed the query
-#    The user's question is converted into an embedding using the same
-#    embedding model.
+# 7. Inject retrieved chunks into the prompt
+#    Add the relevant chunks to the prompt given to the LLM.
 #
-# 7. Retrieve relevant chunks
-#    The query embedding is compared with the document embeddings to find
-#    the most relevant chunks.
-#
-# 8. Generate an answer
-#    The retrieved chunks are injected into the prompt and given to the
-#    language model so it can generate an answer based on the documents.
-
+# 8. Generate a response from the LLM
+#    The LLM uses the retrieved information to generate the answer.
 
 # ===========================================================================
 # KEYWORD RAG
-# ===========================================================================
 
 print("\n" + "=" * 70)
 print("Keyword RAG")
-print("=" * 70)
+
 
 
 documents = {
@@ -241,9 +230,9 @@ def simple_keyword_retrieval(query, documents, verbose=True):
     return [("None found", "No relevant content.")]
 
 
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------===========
 # Keyword Question 1
-# ---------------------------------------------------------------------------
+
 
 print("\nKeyword Question 1")
 print("-" * 70)
@@ -267,7 +256,7 @@ print(result_1[0][0])
 
 # ---------------------------------------------------------------------------
 # Keyword Question 2
-# ---------------------------------------------------------------------------
+
 
 print("\nKeyword Question 2")
 print("-" * 70)
@@ -284,25 +273,23 @@ print("\nRetrieved Document:")
 print(result_2[0][0])
 
 # Reflection:
-# The function selected "None found" because none of the documents
-# contained overlapping keywords with the question.
-# Keyword RAG did not get a useful result.
-# Semantic retrieval would be better because it compares meaning,
-# so it could connect related ideas even when the exact words differ.
 
+# No document was selected because none of the query words matched
+# the document words after stopwords and punctuation were removed.
+#
+# Keyword RAG did not get the answer because the menu mentions
+# drinks like espresso and cold brew, but it does not use the word
+# "caffeine." A semantic retrieval method would do better because
+# it can understand the meaning of the question instead of only
+# looking for exact matching words.
 
 # ---------------------------------------------------------------------------
 # Keyword Question 3
-# ---------------------------------------------------------------------------
 
 print("\nKeyword Question 3")
 print("-" * 70)
 
-# Prediction BEFORE running the retrieval:
-#
-# Prediction: loyalty.txt.
-# I predict loyalty.txt because the question asks about signing up
-# for rewards, which is related to the loyalty program.
+
 
 query_3 = "How do I sign up for rewards?"
 
@@ -315,18 +302,22 @@ result_3 = simple_keyword_retrieval(
 print("\nRetrieved Document:")
 print(result_3[0][0])
 
-# Reflection AFTER running the retrieval:
+# Prediction:
+# I expected loyalty.txt to be selected because "rewards" and
+# "loyalty program" have similar meanings. However, keyword
+# retrieval only looks for exact word overlap, so it may fail
+# even when the words are related.
 #
-# My prediction was not correct.
-# The function returned "None found" because words such as "sign",
-# "up", and "rewards" did not overlap with the words in loyalty.txt.
-# This shows that keyword retrieval can miss a relevant document when
-# the question uses different wording.
-
+# Result:
+# No document was selected because none of the query words
+# appeared exactly in the documents after filtering.
+#
+# This shows why semantic retrieval can be better than keyword
+# retrieval for questions that use different words with similar meanings.
 
 # ===========================================================================
 # SEMANTIC RAG
-# ===========================================================================
+
 
 print("\n" + "=" * 70)
 print("Semantic RAG")
@@ -335,7 +326,7 @@ print("=" * 70)
 
 # ---------------------------------------------------------------------------
 # Semantic Question 1
-# ---------------------------------------------------------------------------
+
 
 print("\nSemantic Question 1")
 print("-" * 70)
@@ -373,16 +364,16 @@ print("-" * 70)
 # | Relevance score?    | Number of matching keywords         | Similarity score              |
 
 
-# ===========================================================================
+# =============================================================================================
 # LLAMAINDEX
-# ===========================================================================
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Warmup")
 print("=" * 70)
 
 
-# Use a relative path so the file can run from the Python 200 project folder.
+
 PDF_DIR = Path("../../python-200/lessons/06_AI_augmentation/resources/brightleaf_pdfs")
 
 
@@ -392,7 +383,7 @@ assert PDF_DIR.is_dir(), f"PDF path is not a directory: {PDF_DIR}"
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 1
-# ---------------------------------------------------------------------------
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 1")
@@ -458,32 +449,26 @@ for question in brightleaf_questions:
     print("\nANSWER:")
     print(response)
 
-    print("\nTOP 3 RETRIEVED SOURCE NODES:")
+    print("\nRetrieved Source Nodes:")
 
-    for i, node in enumerate(
-        response.source_nodes[:3],
-        start=1
-    ):
-        print(f"\nNode {i}")
-        print(
-            f"Document: "
-            f"{node.metadata.get('file_name', 'Unknown')}"
-        )
+    for i, node in enumerate(response.source_nodes, start=1):
+        print(f"\n--- Source Node {i} ---")
+        print(f"Document: {node.metadata.get('file_name', 'Unknown')}")
         print(f"Similarity Score: {node.score}")
         print(f"Text Preview: {node.text[:150]}")
+
+    
 
 
 # Reflection:
 #
 # Query 1 returned employee_benefits.pdf as the strongest source.
 # Query 2 returned security_policy.pdf as the strongest source.
-# The answers were detailed and the top retrieved documents were
-# relevant to the questions.
 
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 2
-# ---------------------------------------------------------------------------
+
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 2")
@@ -548,14 +533,12 @@ for node in response_k5.source_nodes:
 #
 # With top_k=5, the answer was still good, but additional retrieved
 # documents were less relevant.
-#
-# More retrieved context is not always better. Extra irrelevant context
-# can add noise, so the best top_k value depends on the question.
+
 
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 3
-# ---------------------------------------------------------------------------
+# 
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 3")
@@ -600,110 +583,75 @@ for i, node in enumerate(
 
 
 # ---------------------------------------------------------------------------
-# LlamaIndex Question 4
-# ---------------------------------------------------------------------------
 
-print("\n" + "=" * 70)
+# --- LlamaIndex Question 4 ---
 print("LlamaIndex Question 4")
-print("=" * 70)
+print("=" * 60)
+
+from llama_index.llms.openai import OpenAI
+from llama_index.core.evaluation import FaithfulnessEvaluator, RelevancyEvaluator
+
+# Create Judge LLM
+llm = OpenAI(model="gpt-4o-mini", temperature=0.2)
+
+# Define evaluators
+faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
+relevancy_evaluator = RelevancyEvaluator(llm=llm)
 
 
-judge_llm = OpenAI(model="gpt-4o-mini")
+# Query 1: Question that should be answered by the documents
+q1 = "What employee benefits does BrightLeaf offer?"
+response1 = brightleaf_query_engine.query(q1)
 
-faithfulness_evaluator = FaithfulnessEvaluator(
-    llm=judge_llm
+faithfulness_result1 = faithfulness_evaluator.evaluate_response(
+    query=q1,
+    response=response1
 )
 
-relevancy_evaluator = RelevancyEvaluator(
-    llm=judge_llm
+relevancy_result1 = relevancy_evaluator.evaluate_response(
+    query=q1,
+    response=response1
 )
 
+print("\nQUERY 1")
+print(q1)
 
-# First query: expected to produce a strong response.
-evaluation_query_1 = (
-    "What employee benefits does BrightLeaf offer?"
+print("\nFaithfulness Score:")
+print(faithfulness_result1.score)
+
+print("\nRelevancy Score:")
+print(relevancy_result1.score)
+
+
+# Query 2: Question that is not in the documents
+q2 = "What is BrightLeaf's favorite sports team?"
+response2 = brightleaf_query_engine.query(q2)
+
+faithfulness_result2 = faithfulness_evaluator.evaluate_response(
+    query=q2,
+    response=response2
 )
 
-evaluation_engine = brightleaf_index.as_query_engine(
-    similarity_top_k=3
+relevancy_result2 = relevancy_evaluator.evaluate_response(
+    query=q2,
+    response=response2
 )
 
-evaluation_response_1 = evaluation_engine.query(
-    evaluation_query_1
-)
+print("\n" + "-" * 60)
 
+print("\nQUERY 2")
+print(q2)
 
-faithfulness_1 = faithfulness_evaluator.evaluate_response(
-    response=evaluation_response_1
-)
+print("\nFaithfulness Score:")
+print(faithfulness_result2.score)
 
-relevancy_1 = relevancy_evaluator.evaluate_response(
-    query=evaluation_query_1,
-    response=evaluation_response_1
-)
-
-
-print("\nQUERY 1:")
-print(evaluation_query_1)
-
-print("\nANSWER 1:")
-print(evaluation_response_1)
-
-print("\nQUERY 1 EVALUATION:")
-print(f"Faithfulness Score: {faithfulness_1.score}")
-print(f"Faithfulness Passing: {faithfulness_1.passing}")
-print(f"Relevancy Score: {relevancy_1.score}")
-print(f"Relevancy Passing: {relevancy_1.passing}")
-
-
-# Second query: expected to produce a lower-quality response because
-# the information is not in the BrightLeaf documents.
-evaluation_query_2 = (
-    "What is BrightLeaf's favorite sports team?"
-)
-
-evaluation_response_2 = evaluation_engine.query(
-    evaluation_query_2
-)
-
-
-faithfulness_2 = faithfulness_evaluator.evaluate_response(
-    response=evaluation_response_2
-)
-
-relevancy_2 = relevancy_evaluator.evaluate_response(
-    query=evaluation_query_2,
-    response=evaluation_response_2
-)
-
-
-print("\n" + "-" * 70)
-
-print("\nQUERY 2:")
-print(evaluation_query_2)
-
-print("\nANSWER 2:")
-print(evaluation_response_2)
-
-print("\nQUERY 2 EVALUATION:")
-print(f"Faithfulness Score: {faithfulness_2.score}")
-print(f"Faithfulness Passing: {faithfulness_2.passing}")
-print(f"Relevancy Score: {relevancy_2.score}")
-print(f"Relevancy Passing: {relevancy_2.passing}")
-
+print("\nRelevancy Score:")
+print(relevancy_result2.score)
 
 # Reflection:
 #
-# Query 1 received high faithfulness and relevancy scores because the
-# BrightLeaf documents contain information about employee benefits.
-#
-# Query 2 is lower quality because the documents do not contain information
-# about BrightLeaf's favorite sports team. The comparison shows why
-# faithfulness and relevancy are useful for evaluating RAG responses.
-#
-# Faithfulness measures whether the answer is supported by the retrieved
-# information. Relevancy measures whether the answer addresses the question.
-#
-# LLM-as-a-judge uses another language model to evaluate an AI-generated
-# answer. This is useful for RAG because qualities such as faithfulness
-# and relevance are difficult to measure with only a simple accuracy score.
+# Query 1 received good scores because the answer was supported by the BrightLeaf documents.
+# Query 2 had a lower relevancy score because the documents do not contain information
+# about BrightLeaf's favorite sports team.
+# This shows that RAG evaluation checks both whether the answer is supported by the
+# retrieved information and whether it actually answers the question.
