@@ -7,14 +7,10 @@ from pathlib import Path
 
 
 # .env setup
-
-load_dotenv()
-
-if os.getenv("OPENAI_API_KEY"):
+if load_dotenv():
     print("API key loaded successfully.")
 else:
-    print("Warning: OPENAI_API_KEY not found.")
-
+    print("Warning: could not load API key. Check your .env file.")
 
 
 from pypdf import PdfReader
@@ -110,31 +106,43 @@ print("Concepts Question 3")
 #     "Embed the user's query",
 # ]
 #
-# Correct order:
-# 1. Extract text from source documents
+# Arranged order:
+# # steps = [
+#     "Extract text from source documents", 
+#     "Split text into chunks",
+#     "Convert text chunks into embeddings",
+#     "Receive the user's query",
+#     "Embed the user's query",
+#     "Retrieve the most relevant chunks",
+#     "Inject retrieved chunks into the prompt",
+#     "Generate a response from the LLM",
+#   ] 
+#  Adding a one-sentence description for each step:
+# 1.   "Extract text from source documents": 
 #    Get the text from the PDFs or other source documents.
 #
-# 2. Split text into chunks
+# 2.    "Split text into chunks":
 #    Break the documents into smaller pieces that can be retrieved.
 #
-# 3. Convert text chunks into embeddings
+# 3. "Convert text chunks into embeddings":
 #    Turn each chunk into a vector that represents its meaning.
 #
-# 4. Receive the user's query
+# 4. "Receive the user's query":
 #    The system receives the question from the user.
 #
-# 5. Embed the user's query
+# 5. "Embed the user's query":     
 #    Convert the question into an embedding so it can be compared
 #    with the document embeddings.
 #
-# 6. Retrieve the most relevant chunks
+# 6. "Retrieve the most relevant chunks":
 #    Find the document chunks that are most similar to the query.
 #
-# 7. Inject retrieved chunks into the prompt
+# 7. "Inject retrieved chunks into the prompt":
 #    Add the relevant chunks to the prompt given to the LLM.
 #
-# 8. Generate a response from the LLM
-#    The LLM uses the retrieved information to generate the answer.
+# 8. "Generate a response from the LLM":
+#    The LLM uses the retrieved information to generate the answer.,
+#   
 
 # ===========================================================================
 # KEYWORD RAG
@@ -272,12 +280,12 @@ result_2 = simple_keyword_retrieval(
 print("\nRetrieved Document:")
 print(result_2[0][0])
 
-# Reflection:
+
 
 # No document was selected because none of the query words matched
 # the document words after stopwords and punctuation were removed.
 #
-# Keyword RAG did not get the answer because the menu mentions
+# Keyword RAG did not get the answer right because the menu mentions
 # drinks like espresso and cold brew, but it does not use the word
 # "caffeine." A semantic retrieval method would do better because
 # it can understand the meaning of the question instead of only
@@ -367,28 +375,20 @@ print("-" * 70)
 # =============================================================================================
 # LLAMAINDEX
 
+# ---------------------------------------------------------------------------
+# LlamaIndex Question 1
+
+print("\n" + "=" * 70)
+print("LlamaIndex Question 1")
 
 print("\n" + "=" * 70)
 print("LlamaIndex Warmup")
 print("=" * 70)
 
-
-
 PDF_DIR = Path("../../python-200/lessons/06_AI_augmentation/resources/brightleaf_pdfs")
-
 
 assert PDF_DIR.exists(), f"PDF directory not found: {PDF_DIR}"
 assert PDF_DIR.is_dir(), f"PDF path is not a directory: {PDF_DIR}"
-
-
-# ---------------------------------------------------------------------------
-# LlamaIndex Question 1
-
-
-print("\n" + "=" * 70)
-print("LlamaIndex Question 1")
-print("=" * 70)
-
 
 pdf_files = sorted(PDF_DIR.glob("*.pdf"))
 
@@ -451,20 +451,37 @@ for question in brightleaf_questions:
 
     print("\nRetrieved Source Nodes:")
 
-    for i, node in enumerate(response.source_nodes, start=1):
+    # The assignment requires exactly the top 3 retrieved nodes.
+    top_nodes = response.source_nodes[:3]
+
+    for i, node in enumerate(top_nodes, start=1):
         print(f"\n--- Source Node {i} ---")
-        print(f"Document: {node.metadata.get('file_name', 'Unknown')}")
+        print(
+            f"Document: "
+            f"{node.metadata.get('file_name', 'Unknown')}"
+        )
         print(f"Similarity Score: {node.score}")
         print(f"Text Preview: {node.text[:150]}")
-
-    
 
 
 # Reflection:
 #
-# Query 1 returned employee_benefits.pdf as the strongest source.
-# Query 2 returned security_policy.pdf as the strongest source.
-
+# Query 1:
+# The employee benefits document was the strongest match, so the retrieved
+# chunks were mostly relevant to the question. The answer sounded confident
+# and specific because it gave several details about the benefits.
+#
+# The other retrieved documents were less relevant, which shows that the
+# top result was much more useful than some of the additional results.
+#
+# Query 2:
+# The security policy document was the strongest match, so the first
+# retrieved chunk was highly relevant. The answer also sounded confident
+# and specific because it provided detailed security information.
+#
+# One unexpected result was that some of the other retrieved chunks were
+# from documents that were not directly about security. This shows that
+# semantic retrieval can sometimes return related but less useful content.
 
 # ---------------------------------------------------------------------------
 # LlamaIndex Question 2
@@ -472,7 +489,7 @@ for question in brightleaf_questions:
 
 print("\n" + "=" * 70)
 print("LlamaIndex Question 2")
-print("=" * 70)
+
 
 
 benefits_query = "What employee benefits does BrightLeaf offer?"
@@ -582,26 +599,41 @@ for i, node in enumerate(
 # This is an example of a question that cannot be answered from the corpus.
 
 
-# ---------------------------------------------------------------------------
 
-# --- LlamaIndex Question 4 ---
+
+# ---------------------------------------------------------------------------
+# LlamaIndex Question 4
+
+print("\n" + "=" * 70)
 print("LlamaIndex Question 4")
-print("=" * 60)
+print("=" * 70)
 
 from llama_index.llms.openai import OpenAI
-from llama_index.core.evaluation import FaithfulnessEvaluator, RelevancyEvaluator
+from llama_index.core.evaluation import (
+    FaithfulnessEvaluator,
+    RelevancyEvaluator
+)
+
 
 # Create Judge LLM
-llm = OpenAI(model="gpt-4o-mini", temperature=0.2)
+llm = OpenAI(
+    model="gpt-4o-mini",
+    temperature=0.2
+)
+
 
 # Define evaluators
 faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 relevancy_evaluator = RelevancyEvaluator(llm=llm)
 
 
-# Query 1: Question that should be answered by the documents
+# ---------------------------------------------------------------------------
+# Query 1: 
+
 q1 = "What employee benefits does BrightLeaf offer?"
+
 response1 = brightleaf_query_engine.query(q1)
+
 
 faithfulness_result1 = faithfulness_evaluator.evaluate_response(
     query=q1,
@@ -613,6 +645,7 @@ relevancy_result1 = relevancy_evaluator.evaluate_response(
     response=response1
 )
 
+
 print("\nQUERY 1")
 print(q1)
 
@@ -623,9 +656,13 @@ print("\nRelevancy Score:")
 print(relevancy_result1.score)
 
 
-# Query 2: Question that is not in the documents
+# ---------------------------------------------------------------------------
+
+# query 2:
 q2 = "What is BrightLeaf's favorite sports team?"
+
 response2 = brightleaf_query_engine.query(q2)
+
 
 faithfulness_result2 = faithfulness_evaluator.evaluate_response(
     query=q2,
@@ -637,7 +674,8 @@ relevancy_result2 = relevancy_evaluator.evaluate_response(
     response=response2
 )
 
-print("\n" + "-" * 60)
+
+print("\n" + "-" * 70)
 
 print("\nQUERY 2")
 print(q2)
@@ -648,10 +686,24 @@ print(faithfulness_result2.score)
 print("\nRelevancy Score:")
 print(relevancy_result2.score)
 
-# Reflection:
+
+# ---------------------------------------------------------------------------
+# Reflection
 #
-# Query 1 received good scores because the answer was supported by the BrightLeaf documents.
-# Query 2 had a lower relevancy score because the documents do not contain information
-# about BrightLeaf's favorite sports team.
-# This shows that RAG evaluation checks both whether the answer is supported by the
-# retrieved information and whether it actually answers the question.
+# A faithfulness score of 1.0 means the answer is fully supported by the
+# retrieved information. A score of 0.0 means the answer is not supported
+# by the retrieved context.
+#
+# Relevancy measures whether the answer actually answers the user's
+# question. Faithfulness is about whether the answer is supported by the
+# retrieved information, while relevancy is about whether the answer
+# addresses the question.
+#
+# The scores changed between the two queries because the first question
+# was directly related to the BrightLeaf documents, while the second
+# question asked about something that was not in the documents.
+#
+# LLM-as-a-judge means using another language model to evaluate the quality
+# of an answer. It is useful for RAG because answers can be correct in
+# different ways, so a simple exact-match accuracy score is often not
+# enough to measure whether an answer is supported and relevant.

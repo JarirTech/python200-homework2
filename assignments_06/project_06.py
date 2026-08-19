@@ -20,10 +20,10 @@ print("\nStep 1 ***********************************************************")
 
 
 # Load the API key from .env
-load_dotenv()
-
-print("API key loaded successfully.")
-
+if load_dotenv():
+    print("API key loaded successfully.")
+else:
+    print("Warning: could not load API key. Check your .env file.")
 docs_dir = Path("../../python-200/lessons/06_AI_augmentation/resources/groundwork_docs")
 
 # Verify that the document directory exists before using it.
