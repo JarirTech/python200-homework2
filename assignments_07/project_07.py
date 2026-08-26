@@ -19,9 +19,9 @@ from smolagents import (
 )
 
 
-# ============================================================
+# ========================================================================
 # .env SETUP
-# ============================================================
+
 
 if load_dotenv():
     print("API key loaded successfully.")
@@ -32,13 +32,11 @@ else:
     )
 
 
-# ============================================================
+# =================================================================
 # PATHS
-# ============================================================
 
-# Run this project from the repository root with:
-#
-# python assignments_07/project_07.py
+
+
 
 DATA_PATH = Path(
     "assignments_01/outputs/merged_happiness.csv"
@@ -64,7 +62,7 @@ df = None
 
 # ============================================================
 # HELPER FUNCTION
-# ============================================================
+
 
 def clean_columns(dataframe):
     """
@@ -91,7 +89,7 @@ def clean_columns(dataframe):
         )
     )
 
-    # Make common country column names consistent.
+    # Making common country column names consistent.
     if "country_name" in dataframe.columns:
         dataframe = dataframe.rename(
             columns={
@@ -106,7 +104,7 @@ def clean_columns(dataframe):
             }
         )
 
-    # Make the region name easier to use for plotting.
+    # Making the region name easier to use for plotting.
     if "regional_indicator" in dataframe.columns:
         dataframe = dataframe.rename(
             columns={
@@ -119,7 +117,7 @@ def clean_columns(dataframe):
 
 # ============================================================
 # TASK 1 - TOOL 1
-# ============================================================
+
 
 @tool
 def load_happiness_data() -> dict:
@@ -140,7 +138,7 @@ def load_happiness_data() -> dict:
 
     # --------------------------------------------------------
     # Primary merged dataset
-    # --------------------------------------------------------
+   
 
     if DATA_PATH.exists():
 
@@ -161,8 +159,8 @@ def load_happiness_data() -> dict:
             }
 
     # --------------------------------------------------------
-    # Required fallback
-    # --------------------------------------------------------
+    # fallback
+   
 
     else:
 
@@ -198,7 +196,7 @@ def load_happiness_data() -> dict:
 
         for file_path in csv_files:
 
-            # Get the year from names such as:
+            # Getting the year from names such as:
             # 2015.csv
             # happiness_2015.csv
 
@@ -280,7 +278,7 @@ def load_happiness_data() -> dict:
 
     # --------------------------------------------------------
     # Clean columns
-    # --------------------------------------------------------
+   
 
     df = clean_columns(
         df
@@ -294,7 +292,7 @@ def load_happiness_data() -> dict:
 
 # ============================================================
 # TASK 1 - TOOL 2
-# ============================================================
+
 
 @tool
 def summarize_column(
@@ -359,7 +357,7 @@ def summarize_column(
 
 # ============================================================
 # TASK 1 - TOOL 3
-# ============================================================
+
 
 @tool
 def compute_correlation(
@@ -448,7 +446,6 @@ def compute_correlation(
 
 # ============================================================
 # TASK 1 - TOOL 4
-# ============================================================
 
 @tool
 def get_top_n_countries(
@@ -552,7 +549,7 @@ def get_top_n_countries(
 
 # ============================================================
 # TASK 2 - BUILD THE AGENT
-# ============================================================
+
 
 api_key = os.getenv(
     "OPENAI_API_KEY"
@@ -630,9 +627,9 @@ agent = CodeAgent(
 )
 
 
-# ============================================================
+# ======================================================================
 # TASK 3 AND TASK 4
-# ============================================================
+
 
 if __name__ == "__main__":
 
@@ -640,9 +637,9 @@ if __name__ == "__main__":
         "\n===== WORLD HAPPINESS AGENT ====="
     )
 
-    # ========================================================
+    # ===========================================================
     # TASK 3 - GUIDED QUERIES
-    # ========================================================
+   
 
     queries = [
 
@@ -698,7 +695,7 @@ if __name__ == "__main__":
                 reset=False
             )
 
-        # After Query 1, give the CodeAgent access to df.
+        # After Query 1, giving the CodeAgent access to df.
         else:
 
             response = agent.run(
@@ -714,7 +711,7 @@ if __name__ == "__main__":
 
     # ========================================================
     # VERIFY QUERY 5 PLOT
-    # ========================================================
+ 
 
     plot_path = Path(
         "assignments_07/outputs/happiness_by_region.png"
@@ -739,7 +736,7 @@ if __name__ == "__main__":
 
     # ========================================================
     # TASK 4 - MY OWN QUESTIONS
-    # ========================================================
+   
 
     # --------------------------------------------------------
     # My Query 1
@@ -802,8 +799,7 @@ if __name__ == "__main__":
 
 
     # ========================================================
-    # OPTIONAL HISTOGRAM VERIFICATION
-    # ========================================================
+    
 
     histogram_path = Path(
         "assignments_07/outputs/happiness_histogram.png"
@@ -825,10 +821,8 @@ if __name__ == "__main__":
             "was not created."
         )
 
-
 # ============================================================
 # TASK 5 - REFLECTION
-# ============================================================
 
 # --- Reflection ---
 #
@@ -846,10 +840,8 @@ if __name__ == "__main__":
 #    by being more capable than you expected, or less?
 #    Describe one specific example.
 #
-#    I was surprised that the CodeAgent could write matplotlib
-#    code for a custom plot when the existing tools were not
-#    enough.
-#
+#    I was surprised that the agent generated matplotlib code
+#    and created both requested plot files.
 #
 # 3. What one additional tool would make this agent meaningfully
 #    more useful? Describe what it would do and what kind of
