@@ -54,8 +54,6 @@ def celsius_to_fahrenheit(celsius: float) -> str:
     return f"{celsius}°C is {fahrenheit}°F"
 
 
-# Standalone function schema.
-# This is the format requested by the lesson.
 celsius_to_fahrenheit_schema = {
     "name": "celsius_to_fahrenheit",
     "description": "Convert a temperature from Celsius to Fahrenheit.",
@@ -72,9 +70,6 @@ celsius_to_fahrenheit_schema = {
 }
 
 
-# OpenAI API tool format.
-# The standalone schema above is wrapped here only when
-# passing it to the OpenAI API.
 celsius_to_fahrenheit_openai_tool = {
     "type": "function",
     "function": celsius_to_fahrenheit_schema
@@ -151,7 +146,6 @@ def run_agent(user_prompt: str) -> str:
         }
     ]
 
-    # First API call.
     first_response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=messages,
@@ -163,15 +157,19 @@ def run_agent(user_prompt: str) -> str:
 
     first_message = first_response.choices[0].message
 
-    messages.append(
-        {
-            "role": "assistant",
-            "content": first_message.content,
-            "tool_calls": first_message.tool_calls
-        }
-    )
+    assistant_entry = {
+        "role": "assistant",
+        "content": first_message.content
+    }
 
-    # Check if the model requested a tool.
+    if first_message.tool_calls:
+        assistant_entry["tool_calls"] = [
+            tc.model_dump()
+            for tc in first_message.tool_calls
+        ]
+
+    messages.append(assistant_entry)
+
     if first_message.tool_calls:
 
         print("Agentic mode engaged...")
@@ -199,7 +197,6 @@ def run_agent(user_prompt: str) -> str:
                 }
             )
 
-        # Second API call after receiving the tool result.
         second_response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=messages
@@ -216,24 +213,16 @@ def run_agent(user_prompt: str) -> str:
     return first_message.content or ""
 
 
-# ------------------------------------------------------------
-# Prediction before calling run_agent()
-#
 # Prediction:
 # The model should NOT call get_current_time because the
 # question is about temperature conversion, not time.
-#
 # I expect one API call because no tool should be needed.
-# ------------------------------------------------------------
 
 response = run_agent(
     "Convert 100 degrees Celsius to Fahrenheit."
 )
 
 print("Result:", response)
-
-# The model answered the temperature question directly.
-# It did not need the get_current_time tool.
 
 
 # ============================================================
@@ -270,7 +259,6 @@ def run_agent(user_prompt: str) -> str:
         }
     ]
 
-    # First API call.
     first_response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=messages,
@@ -286,11 +274,13 @@ def run_agent(user_prompt: str) -> str:
     }
 
     if first_message.tool_calls:
-        assistant_message["tool_calls"] = first_message.tool_calls
+        assistant_message["tool_calls"] = [
+            tc.model_dump()
+            for tc in first_message.tool_calls
+        ]
 
     messages.append(assistant_message)
 
-    # Check for tool calls.
     if first_message.tool_calls:
 
         print("Agentic mode engaged...")
@@ -300,7 +290,7 @@ def run_agent(user_prompt: str) -> str:
             function_name = tool_call.function.name
 
             arguments = json.loads(
-                tool_call.function.arguments
+                tool_call.function.arguments or "{}"
             )
 
             if function_name == "get_current_time":
@@ -331,7 +321,6 @@ def run_agent(user_prompt: str) -> str:
                 }
             )
 
-        # Second API call.
         second_response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=messages
@@ -350,7 +339,6 @@ response_a = run_agent(
 
 print("Response A:", response_a)
 
-# Tool explanation:
 # The celsius_to_fahrenheit tool was called because the
 # question specifically required a temperature conversion.
 
@@ -361,7 +349,6 @@ response_b = run_agent(
 
 print("Response B:", response_b)
 
-# Tool explanation:
 # No tool was needed because this was a general knowledge
 # question and neither available tool was relevant.
 
@@ -383,118 +370,91 @@ class CsvManager:
         self.df = None
         self.csv_name = None
 
-    # --------------------------------------------------------
-    # Internal helper methods
-    # --------------------------------------------------------
+    # --- Small internal helpers --------------------------------------
 
     def _normalize_csv_name(self, filename: str) -> str:
-
         if not filename.lower().endswith(".csv"):
             return filename + ".csv"
-
         return filename
 
     def _available_csv_files(self) -> list[str]:
-
         if not self.resources_dir.exists():
             return []
 
         return sorted(
             [
-                path.name
-                for path in self.resources_dir.iterdir()
-                if path.is_file()
-                and path.suffix.lower() == ".csv"
+                p.name
+                for p in self.resources_dir.iterdir()
+                if p.is_file() and p.suffix.lower() == ".csv"
             ]
         )
 
     def _ensure_loaded(self):
-
         if self.df is None:
-
             files = self._available_csv_files()
-
-            example = (
-                files[0]
-                if files
-                else "your_file.csv"
-            )
+            example = files[0] if files else "your_file.csv"
 
             return {
                 "error": (
-                    "No CSV is loaded yet. "
-                    "First load one from resources/. "
+                    "No CSV is loaded yet. First load one from resources/. "
                     f"For example: load_csv '{example}'."
                 )
             }
 
         return None
 
-    # --------------------------------------------------------
-    # Public tools
-    # --------------------------------------------------------
+    # --- Public tools --------------------------------------
 
     def list_csv_files(self):
         """
-        List available CSV files in the resources directory.
+        List available CSV files in resources/.
         """
 
         files = self._available_csv_files()
 
         if not files:
-
             return {
                 "message": (
-                    "No CSV files found in resources/."
+                    "No CSV files found in resources/. "
+                    "Create a resources/ folder and put one or more "
+                    ".csv files inside it."
                 ),
-                "files": []
+                "files": [],
             }
 
-        return {
-            "files": files
-        }
+        return {"files": files}
 
     def load_csv(self, filename: str):
         """
-        Load a CSV file from resources/ and make it active.
+        Load a CSV file from resources/ and make it the active dataset.
 
         Args:
             filename: CSV filename with or without .csv.
 
         Returns:
-            A dictionary with the loaded file information.
+            A dictionary containing the load status and columns.
         """
 
         filename = self._normalize_csv_name(filename)
-
         path = self.resources_dir / filename
 
         if not path.exists():
-
             return {
-                "error": (
-                    f"Could not find '{filename}' "
-                    "in resources/."
-                ),
-                "available_files":
-                    self._available_csv_files()
+                "error": f"Could not find '{filename}' in resources/.",
+                "available_files": self._available_csv_files(),
             }
 
         self.df = pd.read_csv(path)
-
         self.csv_name = filename
 
         return {
-            "message": (
-                f"Loaded {filename} "
-                f"with shape {self.df.shape}."
-            ),
-            "columns": self.df.columns.tolist()
+            "message": f"Loaded {filename} with shape {self.df.shape}.",
+            "columns": self.df.columns.tolist(),
         }
 
     def get_columns(self):
         """
-        Return column names for the active CSV.
+        Return column names for the currently loaded CSV.
         """
 
         error = self._ensure_loaded()
@@ -509,7 +469,7 @@ class CsvManager:
         columns: list[str] | None = None
     ):
         """
-        Return summary statistics for selected columns.
+        Return basic summary statistics for one or more columns.
 
         If columns is None, summarize all columns.
         """
@@ -520,23 +480,17 @@ class CsvManager:
             return error
 
         if columns is None:
-
             data = self.df
-
         else:
-
             missing = [
-                column
-                for column in columns
-                if column not in self.df.columns
+                c for c in columns
+                if c not in self.df.columns
             ]
 
             if missing:
-
                 return {
                     "error": (
-                        f"These columns are not in "
-                        f"the data: {missing}"
+                        f"These columns are not in the data: {missing}"
                     )
                 }
 
@@ -553,7 +507,7 @@ class CsvManager:
 
     def describe_column(self, column: str):
         """
-        Return summary statistics for one column.
+        Return basic summary statistics for a single column.
         """
 
         error = self._ensure_loaded()
@@ -562,7 +516,6 @@ class CsvManager:
             return error
 
         if column not in self.df.columns:
-
             return {
                 "error": (
                     f"'{column}' is not a column. "
@@ -570,18 +523,15 @@ class CsvManager:
                 )
             }
 
-        summary = self.df[column].describe().to_dict()
+        s = self.df[column]
+        summary = s.describe().to_dict()
 
         cleaned = {}
 
         for key, value in summary.items():
-
             if isinstance(value, (int, float)):
-
                 cleaned[key] = round(value, 3)
-
             else:
-
                 cleaned[key] = value
 
         return cleaned
@@ -593,10 +543,10 @@ class CsvManager:
         plot_type: str = "line"
     ):
         """
-        Plot data from the active CSV.
+        Plot from the active CSV.
 
-        If x is None, plot y against the row index.
-        If x is provided, plot y against x.
+        If x is None, plot y versus row index.
+        If x is provided, plot y versus x.
         """
 
         error = self._ensure_loaded()
@@ -605,14 +555,9 @@ class CsvManager:
             return error
 
         if plot_type not in ["scatter", "line"]:
-
-            return (
-                "Error: I can only do "
-                "'scatter' or 'line'."
-            )
+            return "Error: I can only do 'scatter' or 'line'."
 
         if y not in self.df.columns:
-
             return (
                 f"Error: column '{y}' is not in "
                 f"{self.df.columns.tolist()}"
@@ -622,23 +567,15 @@ class CsvManager:
             x = None
 
         if plot_type == "scatter" and x is None:
-
-            return (
-                "Error: scatter plots need "
-                "both x and y columns."
-            )
+            return "Error: scatter plots need both x and y columns."
 
         title_csv = self.csv_name or "current CSV"
 
         if x is None:
-
             ax = self.df[y].plot(kind="line")
-
             ax.set_title(
-                f"{title_csv} | "
-                f"Line plot: {y} vs row index"
+                f"{title_csv} | Line plot: {y} vs row index"
             )
-
             plt.show()
 
             return (
@@ -647,7 +584,6 @@ class CsvManager:
             )
 
         if x not in self.df.columns:
-
             return (
                 f"Error: column '{x}' is not in "
                 f"{self.df.columns.tolist()}"
@@ -660,8 +596,7 @@ class CsvManager:
         )
 
         ax.set_title(
-            f"{title_csv} | "
-            f"{plot_type.title()} plot: "
+            f"{title_csv} | {plot_type.title()} plot: "
             f"{y} vs {x}"
         )
 
@@ -678,54 +613,39 @@ class CsvManager:
         col2: str
     ):
         """
-        Compute Pearson correlation between two
-        numeric columns in the active CSV.
+        Compute Pearson correlation between two numeric columns.
 
         Args:
             col1: First numeric column.
             col2: Second numeric column.
 
         Returns:
-            A dictionary containing Pearson r and
-            p-value, or an error dictionary.
+            A dictionary containing Pearson r and p-value,
+            or an error dictionary.
         """
 
-        # Do not automatically load a CSV.
-        # Return an error if no CSV is loaded.
-        if self.df is None:
+        error = self._ensure_loaded()
 
-            return {
-                "error": (
-                    "No CSV is loaded yet. "
-                    "Load a CSV first."
-                )
-            }
+        if error:
+            return error
 
         if col1 not in self.df.columns:
-
             return {
-                "error": (
-                    f"Column '{col1}' not found."
-                )
+                "error": f"Column '{col1}' not found."
             }
 
         if col2 not in self.df.columns:
-
             return {
-                "error": (
-                    f"Column '{col2}' not found."
-                )
+                "error": f"Column '{col2}' not found."
             }
 
         try:
-
             r, p = pearsonr(
                 self.df[col1],
                 self.df[col2]
             )
 
         except Exception as error:
-
             return {
                 "error": (
                     "Could not compute correlation: "
@@ -737,156 +657,22 @@ class CsvManager:
             "col1": col1,
             "col2": col2,
             "pearson_r": round(float(r), 4),
-            "p_value": round(float(p), 4)
+            "p_value": round(float(p), 4),
         }
 
 
-print("CsvManager class defined")
+print("Class defined")
 
 
 # ------------------------------------------------------------
-# Resources path
+# Resources path and CSV manager
 # ------------------------------------------------------------
 
-# Use a relative path so the project is portable.
-resources_dir = Path("resources")
+RESOURCES_DIR = Path("resources")
 
-csv_manager = CsvManager(resources_dir)
+csv_backend = CsvManager(RESOURCES_DIR)
 
 print("CsvManager created")
-
-
-# ------------------------------------------------------------
-# Tool schemas
-# ------------------------------------------------------------
-
-tools_schema = [
-
-    {
-        "type": "function",
-        "function": {
-            "name": "list_csv_files",
-            "description": "List available CSV files.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    },
-
-    {
-        "type": "function",
-        "function": {
-            "name": "load_csv",
-            "description": "Load a CSV file.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filename": {
-                        "type": "string",
-                        "description": "Name of the CSV file."
-                    }
-                },
-                "required": ["filename"]
-            }
-        }
-    },
-
-    {
-        "type": "function",
-        "function": {
-            "name": "get_columns",
-            "description": "Get column names from the loaded CSV.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    },
-
-    {
-        "type": "function",
-        "function": {
-            "name": "summarize_columns",
-            "description": "Summarize columns in the loaded CSV.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "columns": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": []
-            }
-        }
-    },
-
-    {
-        "type": "function",
-        "function": {
-            "name": "describe_column",
-            "description": "Describe one column in the loaded CSV.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "column": {
-                        "type": "string"
-                    }
-                },
-                "required": ["column"]
-            }
-        }
-    },
-
-    {
-        "type": "function",
-        "function": {
-            "name": "plot_data",
-            "description": "Create a line or scatter plot from the loaded CSV.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "y": {
-                        "type": "string"
-                    },
-                    "x": {
-                        "type": "string"
-                    },
-                    "plot_type": {
-                        "type": "string",
-                        "enum": ["line", "scatter"]
-                    }
-                },
-                "required": ["y"]
-            }
-        }
-    },
-
-    {
-        "type": "function",
-        "function": {
-            "name": "compute_correlation",
-            "description": "Compute Pearson correlation between two columns.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "col1": {
-                        "type": "string"
-                    },
-                    "col2": {
-                        "type": "string"
-                    }
-                },
-                "required": ["col1", "col2"]
-            }
-        }
-    }
-]
 
 
 # ------------------------------------------------------------
@@ -894,14 +680,162 @@ tools_schema = [
 # ------------------------------------------------------------
 
 node_tools = {
-    "list_csv_files": csv_manager.list_csv_files,
-    "load_csv": csv_manager.load_csv,
-    "get_columns": csv_manager.get_columns,
-    "summarize_columns": csv_manager.summarize_columns,
-    "describe_column": csv_manager.describe_column,
-    "plot_data": csv_manager.plot_data,
-    "compute_correlation": csv_manager.compute_correlation
+    "list_csv_files": csv_backend.list_csv_files,
+    "load_csv": csv_backend.load_csv,
+    "get_columns": csv_backend.get_columns,
+    "summarize_columns": csv_backend.summarize_columns,
+    "describe_column": csv_backend.describe_column,
+    "plot_data": csv_backend.plot_data,
+    "compute_correlation": csv_backend.compute_correlation,
 }
+
+
+# ------------------------------------------------------------
+# Tool schemas
+# ------------------------------------------------------------
+
+tools_schema = [
+    {
+        "type": "function",
+        "function": {
+            "name": "list_csv_files",
+            "description": (
+                "List available CSV files in the resources/ folder."
+            ),
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "load_csv",
+            "description": (
+                "Load a CSV file from the resources/ folder "
+                "and make it the active dataset."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": (
+                            "CSV filename in resources/, "
+                            "for example 'bike_commute.csv'."
+                        ),
+                    }
+                },
+                "required": ["filename"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_columns",
+            "description": (
+                "Get the column names of the currently loaded CSV."
+            ),
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "summarize_columns",
+            "description": (
+                "Show basic summary statistics for columns "
+                "using pandas.describe."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": (
+                            "Optional list of column names. "
+                            "If omitted, summarize all columns."
+                        ),
+                    }
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "describe_column",
+            "description": (
+                "Show basic summary statistics for a single column."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "column": {
+                        "type": "string",
+                        "description": "Column name to describe.",
+                    }
+                },
+                "required": ["column"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "plot_data",
+            "description": (
+                "Plot data from the active CSV. "
+                "If only y is provided, plot y versus row index."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "y": {
+                        "type": "string",
+                        "description": "Column name for y-axis.",
+                    },
+                    "x": {
+                        "type": "string",
+                        "description": "Optional column name for x-axis.",
+                    },
+                    "plot_type": {
+                        "type": "string",
+                        "enum": ["scatter", "line"],
+                        "description": (
+                            "Type of plot to create."
+                        ),
+                    },
+                },
+                "required": ["y"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compute_correlation",
+            "description": (
+                "Compute the Pearson correlation coefficient "
+                "between two numeric columns."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "col1": {
+                        "type": "string",
+                        "description": "First numeric column.",
+                    },
+                    "col2": {
+                        "type": "string",
+                        "description": "Second numeric column.",
+                    },
+                },
+                "required": ["col1", "col2"],
+            },
+        },
+    },
+]
 
 
 print("CSV tools added successfully.")
@@ -920,7 +854,7 @@ def run_agent_cycle(
     max_tool_rounds=5
 ):
     """
-    Run the agent through repeated tool-use cycles.
+    Run through one ReAct agent loop using the CSV tools.
     """
 
     messages.append(
@@ -934,6 +868,9 @@ def run_agent_cycle(
         tool_call_id,
         result
     ):
+        """
+        Return a tool result as a message for the LLM.
+        """
 
         content = (
             json.dumps(result, default=str)
@@ -944,7 +881,7 @@ def run_agent_cycle(
         return {
             "role": "tool",
             "tool_call_id": tool_call_id,
-            "content": content
+            "content": content,
         }
 
     for loop_idx in range(max_tool_rounds):
@@ -953,18 +890,16 @@ def run_agent_cycle(
             model="gpt-4.1-mini",
             messages=messages,
             tools=tools_schema,
-            tool_choice="auto"
         )
 
         msg = response.choices[0].message
 
         assistant_entry = {
             "role": "assistant",
-            "content": msg.content
+            "content": msg.content,
         }
 
         if msg.tool_calls:
-
             assistant_entry["tool_calls"] = [
                 tc.model_dump()
                 for tc in msg.tool_calls
@@ -972,12 +907,9 @@ def run_agent_cycle(
 
         messages.append(assistant_entry)
 
-        # No tool calls means this is the final answer.
         if not msg.tool_calls:
-
             return msg.content
 
-        # ACT + OBSERVE
         for tool_call in msg.tool_calls:
 
             name = tool_call.function.name
@@ -1003,7 +935,6 @@ def run_agent_cycle(
             else:
 
                 try:
-
                     result = (
                         fn(**tool_args)
                         if tool_args
@@ -1012,9 +943,15 @@ def run_agent_cycle(
 
                 except Exception as error:
 
+                    print(
+                        f"Tool error in {name}: "
+                        f"{type(error).__name__}: {error}"
+                    )
+
                     result = {
                         "error": (
-                            f"Tool failed: {error}"
+                            f"Tool '{name}' failed: "
+                            f"{type(error).__name__}: {error}"
                         )
                     }
 
@@ -1027,15 +964,14 @@ def run_agent_cycle(
                 )
             )
 
-    return "I hit the tool-round limit."
+    return "I hit the tool-round limit. Try a simpler request."
 
 
-system_prompt = (
-    "You are a small data assistant for CSV files "
-    "stored in resources/. "
-    "Use the available tools to do data work. "
-    "Do not guess. "
-    "If no CSV is loaded, load one first. "
+SYSTEM_PROMPT = (
+    "You are a small data assistant for CSV files stored in resources/. "
+    "Use the available tools to do any data work (do not guess). "
+    "If no CSV is loaded yet, load one first "
+    "(or list available CSV files). "
     "Keep answers short and student-friendly."
 )
 
@@ -1043,7 +979,7 @@ system_prompt = (
 messages = [
     {
         "role": "system",
-        "content": system_prompt
+        "content": SYSTEM_PROMPT
     }
 ]
 
@@ -1078,11 +1014,13 @@ print("\n--------- Q6 -----------------------------------------------")
 # Contains the result returned by a tool after it is executed.
 
 
-print(json.dumps(
-    messages,
-    indent=2,
-    default=str
-))
+print(
+    json.dumps(
+        messages,
+        indent=2,
+        default=str
+    )
+)
 
 
 # ============================================================
@@ -1093,12 +1031,96 @@ print("\n--------- Q7 -----------------------------------------------")
 
 
 @tool
+def list_csv_files() -> dict:
+    """List available CSV files in resources/.
+
+    Returns:
+        A dictionary with a "files" list, or a message if none exist.
+    """
+    return csv_backend.list_csv_files()
+
+
+@tool
+def load_csv(filename: str) -> dict:
+    """Load a CSV file from resources/ and make it active.
+
+    Args:
+        filename: CSV filename in resources/.
+
+    Returns:
+        A dictionary containing load status and column names.
+    """
+    return csv_backend.load_csv(filename)
+
+
+@tool
+def get_columns() -> list[str] | dict:
+    """Return column names for the currently loaded CSV.
+
+    Returns:
+        A list of column names, or an error dictionary.
+    """
+    return csv_backend.get_columns()
+
+
+@tool
+def summarize_columns(
+    columns: list[str] | None = None
+) -> dict:
+    """Return summary statistics for selected columns.
+
+    Args:
+        columns: Optional list of column names. If None,
+            summarize all columns.
+
+    Returns:
+        A dictionary of summary statistics.
+    """
+    return csv_backend.summarize_columns(columns)
+
+
+@tool
+def describe_column(column: str) -> dict:
+    """Describe a single column using basic statistics.
+
+    Args:
+        column: Name of the column to describe.
+
+    Returns:
+        A dictionary of basic statistics.
+    """
+    return csv_backend.describe_column(column)
+
+
+@tool
+def plot_data(
+    y: str,
+    x: str | None = None,
+    plot_type: str = "line"
+) -> str | dict:
+    """Plot data from the active CSV.
+
+    Args:
+        y: Column name for the y-axis.
+        x: Optional column name for the x-axis.
+        plot_type: "line" or "scatter".
+
+    Returns:
+        A short success message or an error.
+    """
+    return csv_backend.plot_data(
+        y=y,
+        x=x,
+        plot_type=plot_type
+    )
+
+
+@tool
 def compute_correlation(
     col1: str,
     col2: str
 ) -> dict:
-    """
-    Compute Pearson correlation between two columns.
+    """Compute Pearson correlation between two columns.
 
     Args:
         col1: Name of the first numeric column.
@@ -1106,31 +1128,15 @@ def compute_correlation(
 
     Returns:
         A dictionary containing Pearson r and p-value,
-        or an error message.
+        or an error dictionary.
     """
-
-    return csv_manager.compute_correlation(
+    return csv_backend.compute_correlation(
         col1,
         col2
     )
 
 
-print(compute_correlation.description)
-
-
-# ------------------------------------------------------------
-# Reflection:
-#
-# Smolagents creates the tool description from the function
-# name, type hints, and docstring.
-#
-# The manual JSON schema in Q4 requires more code.
-# Using @tool is simpler because Smolagents builds the tool
-# information automatically.
-#
-# Good docstrings are important because they help the agent
-# understand how and when to use the tool.
-# ------------------------------------------------------------
+print("Smolagents tools created successfully.")
 
 
 # ============================================================
@@ -1141,43 +1147,92 @@ print("\n--------- Q8 -----------------------------------------------")
 
 
 model = OpenAIServerModel(
-    model_id="gpt-4.1-mini",
-    api_key=os.getenv("OPENAI_API_KEY")
+    api_key=os.getenv("OPENAI_API_KEY"),
+    model_id="gpt-4o-mini",
 )
 
 
+# IMPORTANT:
+# Both agents use the SAME complete TOOLS list from the lesson.
 TOOLS = [
-    compute_correlation
+    list_csv_files,
+    load_csv,
+    get_columns,
+    summarize_columns,
+    describe_column,
+    plot_data,
+    compute_correlation,
 ]
+
+
+SYSTEM_PROMPT = (
+    "You are a small data assistant to help analyze files "
+    "stored in resources/. "
+    "Use the available tools to do any work requested "
+    "(do not guess). "
+    "Keep answers short and student-friendly."
+)
 
 
 tool_agent = ToolCallingAgent(
     tools=TOOLS,
-    model=model
+    model=model,
+    instructions=SYSTEM_PROMPT,
 )
+
+
+CODE_INSTRUCTIONS = """
+You are a helpful CSV analysis assistant.
+
+You can do two kinds of actions:
+1) Call the provided tools.
+2) Write and execute Python code when tools are not enough.
+
+Rules:
+- Prefer tools for simple tasks.
+- IMPORTANT: If the user requests plot styling
+  (color, marker, title text, labels, grid, etc.)
+  that the plot_data tool cannot control, DO NOT call plot_data.
+  Instead, write matplotlib code directly so the plot matches
+  the request.
+- If code execution fails, do not fall back to plot_data when
+  the user requested styling like color.
+- Explain what failed and what you would need to proceed.
+- Be honest: only claim you did something if the code or tool
+  actually did it.
+- Assume the active dataset lives in csv_manager.df after
+  a CSV has been loaded.
+"""
 
 
 code_agent = CodeAgent(
     tools=TOOLS,
-    model=model
+    model=model,
+    instructions=CODE_INSTRUCTIONS,
+    additional_authorized_imports=[
+        "pandas",
+        "matplotlib.pyplot",
+        "numpy",
+    ],
+    max_steps=8,
 )
 
 
-prompt = (
-    "Load bike_commute.csv. "
-    "Plot avg_heart_rate vs duration_min "
-    "as a scatter plot with green dots."
-)
+prompt = """
+Load bike_commute.csv, and plot avg_heart_rate versus
+duration_min as a scatter plot with green dots.
+"""
 
 
+# ToolCallingAgent test
 response_tool = tool_agent.run(prompt)
 
-
+# CodeAgent test
 response_code = code_agent.run(
     prompt,
     additional_args={
-        "csv_manager": csv_manager
-    }
+        "csv_manager": csv_backend
+    },
 )
 
 
@@ -1191,15 +1246,20 @@ print(response_code)
 # ------------------------------------------------------------
 # Reflection:
 #
-# The ToolCallingAgent can only use the tools that are given
-# to it. Since plotting is not one of its available tools,
-# it cannot fully complete the plotting request.
+# The ToolCallingAgent can only use the tools provided to it.
+# It has the complete CSV toolset, including load_csv,
+# plot_data, and compute_correlation.
 #
-# The CodeAgent is more flexible because it can write and
-# run Python code for tasks such as custom plotting.
+# However, plot_data does not provide an option to control
+# point color, so the ToolCallingAgent cannot directly add
+# green dots through that tool.
 #
-# Therefore, CodeAgent is more useful when a task requires
-# custom Python code.
+# The CodeAgent receives the same TOOLS list, but it can also
+# write and execute Python code when the available tools are
+# not enough.
+#
+# Therefore, the CodeAgent can create a custom matplotlib
+# plot with green dots.
 # ------------------------------------------------------------
 
 
@@ -1214,11 +1274,19 @@ print("\n--------- Q9 -----------------------------------------------")
 # Reflection:
 #
 # 1. A ToolCallingAgent is best when the needed tools already
-#    exist, such as loading a CSV or computing a correlation.
+#    exist, such as loading a CSV, describing columns,
+#    plotting data, or computing a correlation.
 #
-# 2. A CodeAgent is more flexible because it can create and
-#    run code, but generated code can sometimes contain errors.
+# 2. A CodeAgent is more flexible because it can use the
+#    provided tools and also create and run Python code when
+#    the existing tools are not enough.
 #
-# 3. ToolCallingAgents are predictable and easier to control.
-#    CodeAgents are better for flexible tasks that require
-#    new or custom Python code.
+# 3. ToolCallingAgents are more limited because they can only
+#    perform actions supported by their available tools.
+#
+# 4. CodeAgents are useful for flexible tasks that require
+#    custom Python code, such as customized matplotlib plots.
+#
+# 5. CodeAgents are more powerful, but generated code can
+#    sometimes contain errors, so their results should still
+#    be checked.
