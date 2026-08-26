@@ -2,11 +2,13 @@
 # Warmup 07
 
 from pathlib import Path
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 from dotenv import load_dotenv
@@ -16,12 +18,12 @@ from smolagents import (
     ToolCallingAgent,
     CodeAgent,
     OpenAIServerModel,
-    tool
+    tool,
 )
 
 
 # ============================================================
-# .env SETUP
+# SETUP
 # ============================================================
 
 if load_dotenv():
@@ -30,83 +32,64 @@ else:
     print("Warning: could not load API key. Check your .env file.")
 
 client = OpenAI()
-print("OpenAI client created.")
 
+print("OpenAI client created.")
 print("Warmup 07 started")
 
 
 # ============================================================
-# Q1: Celsius to Fahrenheit Tool
+# --- Lesson 02 ---
+# Q1
 # ============================================================
 
-print("--------- Q1 -----------------------------------------------")
+print("\n========= Q1 ===============================================")
 
 
 def celsius_to_fahrenheit(celsius: float) -> str:
-    """
-    Convert a temperature from Celsius to Fahrenheit.
-
-    Args:
-        celsius: Temperature in degrees Celsius.
-
-    Returns:
-        A formatted string showing the Celsius and Fahrenheit
-        temperatures.
-    """
+    """Convert a Celsius temperature to Fahrenheit and return it as a formatted string."""
 
     fahrenheit = (celsius * 9 / 5) + 32
 
     return f"{celsius}°C is {fahrenheit}°F"
 
 
-# Standalone function schema.
-# This follows the lesson format.
+# JSON schema describing the function to the LLM.
+# This follows the same function-tool structure used in the lesson.
+
 celsius_to_fahrenheit_schema = {
-    "name": "celsius_to_fahrenheit",
-    "description": "Convert a temperature from Celsius to Fahrenheit.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "celsius": {
-                "type": "number",
-                "description": "Temperature in degrees Celsius."
-            }
+    "type": "function",
+    "function": {
+        "name": "celsius_to_fahrenheit",
+        "description": "Convert a Celsius temperature to Fahrenheit.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "celsius": {
+                    "type": "number",
+                    "description": "Temperature in degrees Celsius.",
+                }
+            },
+            "required": ["celsius"],
         },
-        "required": ["celsius"]
-    }
+    },
 }
 
 
-print(
-    f"celsius_to_fahrenheit(0) = "
-    f"{celsius_to_fahrenheit(0)}"
-)
-
-print(
-    f"celsius_to_fahrenheit(100) = "
-    f"{celsius_to_fahrenheit(100)}"
-)
-
-print(
-    f"celsius_to_fahrenheit(-40) = "
-    f"{celsius_to_fahrenheit(-40)}"
-)
+print(celsius_to_fahrenheit(0))
+print(celsius_to_fahrenheit(100))
+print(celsius_to_fahrenheit(-40))
 
 
 # ============================================================
-# Q2: Simple ReAct-Style Agent
+# --- Lesson 02 ---
+# Q2
 # ============================================================
 
-print("\n--------- Q2 -----------------------------------------------")
+print("\n========= Q2 ===============================================")
 
 
 def get_current_time() -> str:
-    """
-    Return the current local time as a formatted string.
-
-    Returns:
-        str: The current local date and time.
-    """
+    """Return the current local time as a formatted string."""
 
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -119,70 +102,64 @@ get_current_time_schema = {
         "parameters": {
             "type": "object",
             "properties": {},
-            "required": []
-        }
-    }
+            "required": [],
+        },
+    },
 }
 
 
+# Q2 uses only the time tool.
 tools = [
     get_current_time_schema
 ]
 
 
 def run_agent(user_prompt: str) -> str:
-    """
-    Run a minimal ReAct-style agent for one user prompt.
+    """Run a minimal ReAct-style agent for a single user prompt."""
 
-    Args:
-        user_prompt: User question or request.
+    SYSTEM_PROMPT = (
+        "You are a simple assistant that can tell the current time. "
+        "Use the tool get_current_time whenever a user asks about the time."
+    )
 
-    Returns:
-        str: The final response from the model.
-    """
-
-    system_prompt = """
-    You are a simple assistant that can tell the current time.
-    Use the tool get_current_time whenever a user asks about the time.
-    """
-
+    # Step 1: start the conversation.
     messages = [
         {
             "role": "system",
-            "content": system_prompt
+            "content": SYSTEM_PROMPT,
         },
         {
             "role": "user",
-            "content": user_prompt
-        }
+            "content": user_prompt,
+        },
     ]
 
-    # First API call.
+    # Step 2: first API call.
     first_response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=messages,
         tools=tools,
-        tool_choice="auto"
+        tool_choice="auto",
     )
 
     print("First response received from model...")
 
     first_message = first_response.choices[0].message
 
-    assistant_message = {
+    assistant_entry = {
         "role": "assistant",
-        "content": first_message.content
+        "content": first_message.content,
     }
 
     if first_message.tool_calls:
-        assistant_message["tool_calls"] = [
-            tc.model_dump()
-            for tc in first_message.tool_calls
+        assistant_entry["tool_calls"] = [
+            tool_call.model_dump()
+            for tool_call in first_message.tool_calls
         ]
 
-    messages.append(assistant_message)
+    messages.append(assistant_entry)
 
-    # Check if the model requested a tool.
+    # Step 3: check if a tool was requested.
     if first_message.tool_calls:
 
         print("Agentic mode engaged...")
@@ -206,14 +183,14 @@ def run_agent(user_prompt: str) -> str:
                     "role": "tool",
                     "tool_call_id": tool_call.id,
                     "name": function_name,
-                    "content": tool_result
+                    "content": tool_result,
                 }
             )
 
-        # Second API call after receiving the tool result.
+        # Step 4: second API call after tool result.
         second_response = client.chat.completions.create(
             model="gpt-4.1-mini",
-            messages=messages
+            messages=messages,
         )
 
         print("Second response received from model...")
@@ -228,97 +205,90 @@ def run_agent(user_prompt: str) -> str:
 
 
 # ------------------------------------------------------------
-# Prediction before calling run_agent()
+# Prediction
 #
-# Prediction:
-# 1. The model should NOT call get_current_time because the
-#    question asks for a temperature conversion, not the time.
+# 1. Will run_agent(
+#    "Convert 100 degrees Celsius to Fahrenheit"
+#    ) trigger a tool call?
 #
-# 2. I expect one API call because no tool should be needed.
+#    No. The only available tool is get_current_time, and the
+#    question is about temperature conversion, not time.
+#
+# 2. How many API calls will be made?
+#
+#    I predict one API call because no tool should be needed.
+#    The first model response should be the final answer.
 # ------------------------------------------------------------
 
 response = run_agent(
-    "Convert 100 degrees Celsius to Fahrenheit."
+    "Convert 100 degrees Celsius to Fahrenheit"
 )
 
 print("Result:", response)
 
-# No tool was called because the question did not ask for
-# the current time. The model answered the temperature
-# conversion directly, so only one API call was needed.
+# Prediction check:
+# My prediction was correct if no tool was called and only one
+# API call was needed. The model could answer the temperature
+# conversion without using get_current_time.
 
 
 # ============================================================
-# Q3: Multi-Tool ReAct Agent
+# --- Lesson 02 ---
+# Q3
 # ============================================================
 
-print("\n--------- Q3 -----------------------------------------------")
+print("\n========= Q3 ===============================================")
 
 
-# OpenAI API tool format for the Celsius conversion tool.
-celsius_to_fahrenheit_openai_tool = {
-    "type": "function",
-    "function": celsius_to_fahrenheit_schema
-}
-
+# Q3 now gives the model both tools.
 
 tools = [
     get_current_time_schema,
-    celsius_to_fahrenheit_openai_tool
+    celsius_to_fahrenheit_schema,
 ]
 
 
 def run_agent(user_prompt: str) -> str:
-    """
-    Run a ReAct-style agent with two available tools.
+    """Run a ReAct-style agent with both available tools."""
 
-    Args:
-        user_prompt: User question or request.
-
-    Returns:
-        str: The final response from the model.
-    """
-
-    system_prompt = """
-    You are a helpful assistant.
-    Use tools when they are needed.
-    """
+    SYSTEM_PROMPT = (
+        "You are a helpful assistant. "
+        "Use the available tools when they are needed."
+    )
 
     messages = [
         {
             "role": "system",
-            "content": system_prompt
+            "content": SYSTEM_PROMPT,
         },
         {
             "role": "user",
-            "content": user_prompt
-        }
+            "content": user_prompt,
+        },
     ]
 
-    # First API call.
     first_response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=messages,
         tools=tools,
-        tool_choice="auto"
+        tool_choice="auto",
     )
 
     first_message = first_response.choices[0].message
 
-    assistant_message = {
+    assistant_entry = {
         "role": "assistant",
-        "content": first_message.content
+        "content": first_message.content,
     }
 
     if first_message.tool_calls:
-        assistant_message["tool_calls"] = [
-            tc.model_dump()
-            for tc in first_message.tool_calls
+        assistant_entry["tool_calls"] = [
+            tool_call.model_dump()
+            for tool_call in first_message.tool_calls
         ]
 
-    messages.append(assistant_message)
+    messages.append(assistant_entry)
 
-    # Check for tool calls.
     if first_message.tool_calls:
 
         print("Agentic mode engaged...")
@@ -328,7 +298,7 @@ def run_agent(user_prompt: str) -> str:
             function_name = tool_call.function.name
 
             arguments = json.loads(
-                tool_call.function.arguments
+                tool_call.function.arguments or "{}"
             )
 
             if function_name == "get_current_time":
@@ -355,14 +325,13 @@ def run_agent(user_prompt: str) -> str:
                     "role": "tool",
                     "tool_call_id": tool_call.id,
                     "name": function_name,
-                    "content": tool_result
+                    "content": tool_result,
                 }
             )
 
-        # Second API call.
         second_response = client.chat.completions.create(
             model="gpt-4.1-mini",
-            messages=messages
+            messages=messages,
         )
 
         final_message = second_response.choices[0].message
@@ -377,10 +346,9 @@ response_a = run_agent(
 )
 
 print("Response A:", response_a)
-
-# A tool was called because the question required a
-# Celsius-to-Fahrenheit conversion, and that calculation
-# was available through the celsius_to_fahrenheit tool.
+# A tool was called. The agent used celsius_to_fahrenheit
+# because the question directly asked for a temperature
+# conversion.
 
 
 response_b = run_agent(
@@ -388,77 +356,54 @@ response_b = run_agent(
 )
 
 print("Response B:", response_b)
-
-# No tool was called because the question was general
-# knowledge and neither available tool was needed.
+# No tool was called. This was a general knowledge question,
+# so neither available tool was needed.
 
 
 # ============================================================
-# Q4: Multi-Tool CSV Agent
+# --- Lesson 03 ---
+# Q4
+# Full CsvManager from the lesson + compute_correlation
 # ============================================================
 
-print("\n--------- Q4 -----------------------------------------------")
+print("\n========= Q4 ===============================================")
+
+
+# The lesson uses a resources directory containing
+# bike_commute.csv.
+#
+
+RESOURCES_DIR = Path("resources")
 
 
 class CsvManager:
-    """
-    Manage CSV files and perform basic data analysis.
-    """
-
     def __init__(self, resources_dir: Path):
         self.resources_dir = resources_dir
         self.df = None
         self.csv_name = None
 
-    # --------------------------------------------------------
-    # Internal helper methods
-    # --------------------------------------------------------
+    # --- Small internal helpers --------------------------------------
 
     def _normalize_csv_name(self, filename: str) -> str:
-        """
-        Add the .csv extension when it is missing.
-
-        Args:
-            filename: CSV filename.
-
-        Returns:
-            str: Normalized CSV filename.
-        """
-
         if not filename.lower().endswith(".csv"):
             return filename + ".csv"
 
         return filename
 
     def _available_csv_files(self) -> list[str]:
-        """
-        Find CSV files in the resources directory.
-
-        Returns:
-            list[str]: Available CSV filenames.
-        """
-
         if not self.resources_dir.exists():
             return []
 
         return sorted(
             [
-                path.name
-                for path in self.resources_dir.iterdir()
-                if path.is_file()
-                and path.suffix.lower() == ".csv"
+                p.name
+                for p in self.resources_dir.iterdir()
+                if p.is_file()
+                and p.suffix.lower() == ".csv"
             ]
         )
 
     def _ensure_loaded(self):
-        """
-        Check whether a CSV file has been loaded.
-
-        Returns:
-            dict or None: Error dictionary when no CSV is
-            loaded, otherwise None.
-        """
-
         if self.df is None:
 
             files = self._available_csv_files()
@@ -479,28 +424,23 @@ class CsvManager:
 
         return None
 
-    # --------------------------------------------------------
-    # Public tools
-    # --------------------------------------------------------
+    # --- Tools (public methods) --------------------------------------
 
     def list_csv_files(self):
         """
-        List available CSV files in the resources directory.
-
-        Returns:
-            dict: Available CSV filenames or a message when
-            no CSV files are found.
+        List available CSV files in resources/.
         """
 
         files = self._available_csv_files()
 
         if not files:
-
             return {
                 "message": (
-                    "No CSV files found in resources/."
+                    "No CSV files found in resources/. "
+                    "Create a resources/ folder and put one "
+                    "or more .csv files inside it."
                 ),
-                "files": []
+                "files": [],
             }
 
         return {
@@ -509,33 +449,28 @@ class CsvManager:
 
     def load_csv(self, filename: str):
         """
-        Load a CSV file from the resources directory.
+        Load a CSV file from resources/ and make it the active dataset.
 
-        Args:
-            filename: CSV filename with or without .csv.
-
-        Returns:
-            dict: Information about the loaded CSV, including
-            its shape and columns, or an error message.
+        filename can be "bike_commute" or "bike_commute.csv".
         """
 
-        filename = self._normalize_csv_name(filename)
+        filename = self._normalize_csv_name(
+            filename
+        )
 
         path = self.resources_dir / filename
 
         if not path.exists():
-
             return {
                 "error": (
                     f"Could not find '{filename}' "
                     "in resources/."
                 ),
                 "available_files":
-                    self._available_csv_files()
+                    self._available_csv_files(),
             }
 
         self.df = pd.read_csv(path)
-
         self.csv_name = filename
 
         return {
@@ -543,16 +478,12 @@ class CsvManager:
                 f"Loaded {filename} "
                 f"with shape {self.df.shape}."
             ),
-            "columns": self.df.columns.tolist()
+            "columns": self.df.columns.tolist(),
         }
 
     def get_columns(self):
         """
-        Return column names for the active CSV.
-
-        Returns:
-            list or dict: Column names when a CSV is loaded,
-            otherwise an error dictionary.
+        Return column names for the currently loaded CSV.
         """
 
         error = self._ensure_loaded()
@@ -567,14 +498,10 @@ class CsvManager:
         columns: list[str] | None = None
     ):
         """
-        Return summary statistics for selected columns.
+        Return basic summary stats for one or more columns.
 
-        Args:
-            columns: Optional list of columns to summarize.
-                If None, summarize all columns.
-
-        Returns:
-            dict: Summary statistics or an error dictionary.
+        If columns is None, summarize all columns.
+        Uses pandas.describe(include="all").
         """
 
         error = self._ensure_loaded()
@@ -595,10 +522,9 @@ class CsvManager:
             ]
 
             if missing:
-
                 return {
                     "error": (
-                        f"These columns are not in "
+                        "These columns are not in "
                         f"the data: {missing}"
                     )
                 }
@@ -616,14 +542,7 @@ class CsvManager:
 
     def describe_column(self, column: str):
         """
-        Return summary statistics for one column.
-
-        Args:
-            column: Column to describe.
-
-        Returns:
-            dict: Descriptive statistics for the column,
-            or an error dictionary.
+        Simple summary for a single column using pandas.describe().
         """
 
         error = self._ensure_loaded()
@@ -632,7 +551,6 @@ class CsvManager:
             return error
 
         if column not in self.df.columns:
-
             return {
                 "error": (
                     f"'{column}' is not a column. "
@@ -640,18 +558,17 @@ class CsvManager:
                 )
             }
 
-        summary = self.df[column].describe().to_dict()
+        series = self.df[column]
+
+        summary = series.describe().to_dict()
 
         cleaned = {}
 
         for key, value in summary.items():
 
             if isinstance(value, (int, float)):
-
                 cleaned[key] = round(value, 3)
-
             else:
-
                 cleaned[key] = value
 
         return cleaned
@@ -663,15 +580,10 @@ class CsvManager:
         plot_type: str = "line"
     ):
         """
-        Plot data from the active CSV.
+        Plot from the active CSV.
 
-        Args:
-            y: Column to use for the y-axis.
-            x: Optional column to use for the x-axis.
-            plot_type: Plot type, either line or scatter.
-
-        Returns:
-            str or dict: Plot description or an error message.
+        - If x is None: plot y vs row index.
+        - If x is provided: plot y vs x.
         """
 
         error = self._ensure_loaded()
@@ -679,15 +591,16 @@ class CsvManager:
         if error:
             return error
 
-        if plot_type not in ["scatter", "line"]:
-
+        if plot_type not in [
+            "scatter",
+            "line",
+        ]:
             return (
                 "Error: I can only do "
                 "'scatter' or 'line'."
             )
 
         if y not in self.df.columns:
-
             return (
                 f"Error: column '{y}' is not in "
                 f"{self.df.columns.tolist()}"
@@ -696,18 +609,25 @@ class CsvManager:
         if x == y:
             x = None
 
-        if plot_type == "scatter" and x is None:
-
+        if (
+            plot_type == "scatter"
+            and x is None
+        ):
             return (
                 "Error: scatter plots need "
                 "both x and y columns."
             )
 
-        title_csv = self.csv_name or "current CSV"
+        title_csv = (
+            self.csv_name
+            or "current CSV"
+        )
 
         if x is None:
 
-            ax = self.df[y].plot(kind="line")
+            ax = self.df[y].plot(
+                kind="line"
+            )
 
             ax.set_title(
                 f"{title_csv} | "
@@ -722,7 +642,6 @@ class CsvManager:
             )
 
         if x not in self.df.columns:
-
             return (
                 f"Error: column '{x}' is not in "
                 f"{self.df.columns.tolist()}"
@@ -731,7 +650,7 @@ class CsvManager:
         ax = self.df.plot(
             x=x,
             y=y,
-            kind=plot_type
+            kind=plot_type,
         )
 
         ax.set_title(
@@ -747,34 +666,25 @@ class CsvManager:
             f"as a {plot_type}."
         )
 
+    # --------------------------------------------------------
+   
+
     def compute_correlation(
         self,
         col1: str,
         col2: str
     ):
         """
-        Compute Pearson correlation between two numeric columns.
-
-        Args:
-            col1: First numeric column.
-            col2: Second numeric column.
-
-        Returns:
-            dict: Column names, Pearson r, and p-value,
-            or an error dictionary.
+        Compute the Pearson correlation between two columns in the loaded DataFrame.
+        Returns the correlation coefficient and p-value.
         """
 
-        if self.df is None:
+        error = self._ensure_loaded()
 
-            return {
-                "error": (
-                    "No CSV is loaded yet. "
-                    "Load a CSV first."
-                )
-            }
+        if error:
+            return error
 
         if col1 not in self.df.columns:
-
             return {
                 "error": (
                     f"Column '{col1}' not found."
@@ -782,7 +692,6 @@ class CsvManager:
             }
 
         if col2 not in self.df.columns:
-
             return {
                 "error": (
                     f"Column '{col2}' not found."
@@ -791,10 +700,27 @@ class CsvManager:
 
         try:
 
+            data = self.df[
+                [col1, col2]
+            ].dropna()
+
             r, p = pearsonr(
-                self.df[col1],
-                self.df[col2]
+                data[col1],
+                data[col2]
             )
+
+            return {
+                "col1": col1,
+                "col2": col2,
+                "pearson_r": round(
+                    float(r),
+                    4
+                ),
+                "p_value": round(
+                    float(p),
+                    4
+                ),
+            }
 
         except Exception as error:
 
@@ -805,30 +731,45 @@ class CsvManager:
                 )
             }
 
-        return {
-            "col1": col1,
-            "col2": col2,
-            "pearson_r": round(float(r), 4),
-            "p_value": round(float(p), 4)
-        }
-
 
 print("CsvManager class defined")
 
 
-# ------------------------------------------------------------
-# Resources path
-# ------------------------------------------------------------
-
-resources_dir = Path("resources")
-
-csv_manager = CsvManager(resources_dir)
-
-print("CsvManager created")
+csv_manager = CsvManager(
+    RESOURCES_DIR
+)
 
 
 # ------------------------------------------------------------
-# Tool schemas
+# node_tools from the lesson + compute_correlation
+# ------------------------------------------------------------
+
+node_tools = {
+    "list_csv_files":
+        csv_manager.list_csv_files,
+
+    "load_csv":
+        csv_manager.load_csv,
+
+    "get_columns":
+        csv_manager.get_columns,
+
+    "summarize_columns":
+        csv_manager.summarize_columns,
+
+    "describe_column":
+        csv_manager.describe_column,
+
+    "plot_data":
+        csv_manager.plot_data,
+
+    "compute_correlation":
+        csv_manager.compute_correlation,
+}
+
+
+# ------------------------------------------------------------
+# tools_schema from the lesson + compute_correlation
 # ------------------------------------------------------------
 
 tools_schema = [
@@ -837,51 +778,57 @@ tools_schema = [
         "type": "function",
         "function": {
             "name": "list_csv_files",
-            "description": "List available CSV files.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
+            "description": (
+                "List available CSV files "
+                "in the resources/ folder."
+            ),
+        },
     },
 
     {
         "type": "function",
         "function": {
             "name": "load_csv",
-            "description": "Load a CSV file.",
+            "description": (
+                "Load a CSV file from the "
+                "resources/ folder and make "
+                "it the active dataset."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "Name of the CSV file."
+                        "description": (
+                            "CSV filename in resources/, "
+                            "e.g. 'bike_commute.csv'."
+                        ),
                     }
                 },
-                "required": ["filename"]
-            }
-        }
+                "required": ["filename"],
+            },
+        },
     },
 
     {
         "type": "function",
         "function": {
             "name": "get_columns",
-            "description": "Get column names from the loaded CSV.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
+            "description": (
+                "Get the column names of "
+                "the currently loaded CSV."
+            ),
+        },
     },
 
     {
         "type": "function",
         "function": {
             "name": "summarize_columns",
-            "description": "Summarize columns in the loaded CSV.",
+            "description": (
+                "Show basic summary statistics "
+                "for columns."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -889,100 +836,122 @@ tools_schema = [
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "description": (
+                            "Optional list of column names. "
+                            "If omitted, summarize all columns."
+                        ),
                     }
                 },
-                "required": []
-            }
-        }
+            },
+        },
     },
 
     {
         "type": "function",
         "function": {
             "name": "describe_column",
-            "description": "Describe one column in the loaded CSV.",
+            "description": (
+                "Show basic summary statistics "
+                "for a single column."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "column": {
-                        "type": "string"
+                        "type": "string",
+                        "description": (
+                            "Column name to describe."
+                        ),
                     }
                 },
-                "required": ["column"]
-            }
-        }
+                "required": ["column"],
+            },
+        },
     },
 
     {
         "type": "function",
         "function": {
             "name": "plot_data",
-            "description": "Create a line or scatter plot from the loaded CSV.",
+            "description": (
+                "Plot data from the active CSV. "
+                "If only y is provided, plot y "
+                "vs row index."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "y": {
-                        "type": "string"
+                        "type": "string",
+                        "description":
+                            "Column name for y-axis.",
                     },
                     "x": {
-                        "type": "string"
+                        "type": "string",
+                        "description":
+                            "Optional column name for x-axis.",
                     },
                     "plot_type": {
                         "type": "string",
-                        "enum": ["line", "scatter"]
-                    }
+                        "enum": [
+                            "scatter",
+                            "line",
+                        ],
+                        "description":
+                            "Type of plot to create.",
+                    },
                 },
-                "required": ["y"]
-            }
-        }
+                "required": ["y"],
+            },
+        },
     },
 
+    # New Q4 tool.
     {
         "type": "function",
         "function": {
             "name": "compute_correlation",
-            "description": "Compute Pearson correlation between two columns.",
+            "description": (
+                "Compute Pearson correlation "
+                "between two numeric columns."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "col1": {
-                        "type": "string"
+                        "type": "string",
+                        "description":
+                            "First numeric column.",
                     },
                     "col2": {
-                        "type": "string"
-                    }
+                        "type": "string",
+                        "description":
+                            "Second numeric column.",
+                    },
                 },
-                "required": ["col1", "col2"]
-            }
-        }
-    }
+                "required": [
+                    "col1",
+                    "col2",
+                ],
+            },
+        },
+    },
 ]
 
 
-# ------------------------------------------------------------
-# Node tools
-# ------------------------------------------------------------
-
-node_tools = {
-    "list_csv_files": csv_manager.list_csv_files,
-    "load_csv": csv_manager.load_csv,
-    "get_columns": csv_manager.get_columns,
-    "summarize_columns": csv_manager.summarize_columns,
-    "describe_column": csv_manager.describe_column,
-    "plot_data": csv_manager.plot_data,
-    "compute_correlation": csv_manager.compute_correlation
-}
-
-
-print("CSV tools added successfully.")
+print(
+    "compute_correlation added to "
+    "tools_schema and node_tools."
+)
 
 
 # ============================================================
-# Q5: Agent Cycle
+# --- Lesson 03 ---
+# Q5
 # ============================================================
 
-print("\n--------- Q5 -----------------------------------------------")
+print("\n========= Q5 ===============================================")
 
 
 def run_agent_cycle(
@@ -991,21 +960,30 @@ def run_agent_cycle(
     max_tool_rounds=5
 ):
     """
-    Run the agent through repeated tool-use cycles.
+    Run through one ReAct-agent loop.
+
+    REASON:
+        Ask the model what to do.
+
+    ACT:
+        Run requested tools.
+
+    OBSERVE:
+        Add the tool result back to the conversation.
 
     Args:
-        messages: Conversation message history.
-        user_text: New user request.
-        max_tool_rounds: Maximum number of tool-use rounds.
+        messages: Conversation history.
+        user_text: Current user question.
+        max_tool_rounds: Maximum tool rounds.
 
     Returns:
-        str: Final agent response or a tool-round limit message.
+        Final assistant response.
     """
 
     messages.append(
         {
             "role": "user",
-            "content": user_text
+            "content": user_text,
         }
     )
 
@@ -1013,9 +991,11 @@ def run_agent_cycle(
         tool_call_id,
         result
     ):
-
         content = (
-            json.dumps(result, default=str)
+            json.dumps(
+                result,
+                default=str
+            )
             if not isinstance(result, str)
             else result
         )
@@ -1023,59 +1003,80 @@ def run_agent_cycle(
         return {
             "role": "tool",
             "tool_call_id": tool_call_id,
-            "content": content
+            "content": content,
         }
 
-    for loop_idx in range(max_tool_rounds):
+    for loop_idx in range(
+        max_tool_rounds
+    ):
 
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=messages,
-            tools=tools_schema,
-            tool_choice="auto"
+        # REASON
+        response = (
+            client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=messages,
+                tools=tools_schema,
+            )
         )
 
-        msg = response.choices[0].message
+        msg = (
+            response
+            .choices[0]
+            .message
+        )
 
         assistant_entry = {
             "role": "assistant",
-            "content": msg.content
+            "content": msg.content,
         }
 
         if msg.tool_calls:
-
-            assistant_entry["tool_calls"] = [
-                tc.model_dump()
-                for tc in msg.tool_calls
+            assistant_entry[
+                "tool_calls"
+            ] = [
+                tool_call.model_dump()
+                for tool_call
+                in msg.tool_calls
             ]
 
-        messages.append(assistant_entry)
+        messages.append(
+            assistant_entry
+        )
 
-        # No tool calls means this is the final answer.
+        # No tool calls = final answer.
         if not msg.tool_calls:
-
             return msg.content
 
         # ACT + OBSERVE
         for tool_call in msg.tool_calls:
 
-            name = tool_call.function.name
+            name = (
+                tool_call
+                .function
+                .name
+            )
 
             tool_args = json.loads(
-                tool_call.function.arguments or "{}"
+                tool_call
+                .function
+                .arguments
+                or "{}"
             )
 
             print(
                 f"ACT: {name}({tool_args})"
             )
 
-            fn = node_tools.get(name)
+            fn = node_tools.get(
+                name
+            )
 
             if fn is None:
 
                 result = {
                     "error": (
-                        f"Tool '{name}' not found."
+                        f"Tool '{name}' "
+                        "not found."
                     )
                 }
 
@@ -1091,13 +1092,22 @@ def run_agent_cycle(
 
                 except Exception as error:
 
+                    print(
+                        "Tool error in "
+                        f"{name}: {error}"
+                    )
+
                     result = {
                         "error": (
-                            f"Tool failed: {error}"
+                            f"Tool '{name}' "
+                            f"failed: {error}"
                         )
                     }
 
-            print("OBSERVE:", result)
+            print(
+                "OBSERVE:",
+                result
+            )
 
             messages.append(
                 observe_tool_result(
@@ -1106,15 +1116,16 @@ def run_agent_cycle(
                 )
             )
 
-    return "I hit the tool-round limit."
+    return (
+        "I hit the tool-round limit. "
+        "Try a simpler request."
+    )
 
 
-system_prompt = (
-    "You are a small data assistant for CSV files "
-    "stored in resources/. "
-    "Use the available tools to do data work. "
-    "Do not guess. "
-    "If no CSV is loaded, load one first. "
+SYSTEM_PROMPT = (
+    "You are a small data assistant for CSV files stored in resources/. "
+    "Use the available tools to do any data work (do not guess). "
+    "If no CSV is loaded yet, load one first (or list available CSV files). "
     "Keep answers short and student-friendly."
 )
 
@@ -1122,89 +1133,151 @@ system_prompt = (
 messages = [
     {
         "role": "system",
-        "content": system_prompt
+        "content": SYSTEM_PROMPT,
     }
 ]
 
 
 result = run_agent_cycle(
     messages,
-    "Load bike_commute.csv and compute the correlation "
-    "between avg_traffic_density and avg_speed_kmh."
+    (
+        "Load bike_commute.csv and compute the correlation "
+        "between avg_traffic_density and avg_speed_kmh."
+    )
 )
 
-print("Final answer:")
+print("Final response:")
 print(result)
 
+# The agent should now succeed because compute_correlation
+# is available as a tool instead of hitting the tool-round
+# limit from the original lesson example.
+
 
 # ============================================================
-# Q6: Message Roles
+# --- Lesson 03 ---
+# Q6
 # ============================================================
 
-print("\n--------- Q6 -----------------------------------------------")
+print("\n========= Q6 ===============================================")
 
 
 # system:
-# Gives the agent instructions about how to behave.
+# Gives instructions that control how the agent behaves.
 #
 # user:
 # Contains the user's question or request.
 #
 # assistant:
-# Contains the model's response and any requested tool calls.
+# Contains the model response and any requested tool calls.
 #
 # tool:
-# Contains the result returned by a tool after it is executed.
+# Contains the result returned by a tool. The model reads this
+# result during the next REASON step of the ReAct loop.
 
 
-print(json.dumps(
-    messages,
-    indent=2,
-    default=str
-))
+print(
+    json.dumps(
+        messages,
+        indent=2,
+        default=str,
+    )
+)
 
 
 # ============================================================
-# Q7: Smolagents @tool
+# --- Lesson 04 ---
+# Q7
 # ============================================================
 
-print("\n--------- Q7 -----------------------------------------------")
+print("\n========= Q7 ===============================================")
+
+
+@tool
+def compute_correlation(
+    col1: str,
+    col2: str
+) -> dict:
+    """Compute Pearson correlation between two columns.
+
+    Args:
+        col1: Name of the first numeric column.
+        col2: Name of the second numeric column.
+
+    Returns:
+        A dictionary containing the column names, Pearson
+        correlation coefficient, and p-value.
+    """
+
+    return csv_manager.compute_correlation(
+        col1,
+        col2,
+    )
+
+
+print(compute_correlation.description)
+
+# Q7 Reflection:
+#
+# In Q4, I manually wrote the JSON schema with the tool name,
+# description, parameter types, and required arguments.
+#
+# Smolagents creates this information automatically from the
+# function name, type hints, and Google-style docstring.
+#
+# As the developer, I need to provide clear type hints and a
+# good docstring that explains what the tool does, describes
+# each argument, and explains what the function returns.
+
+
+# ============================================================
+# --- Lesson 04 ---
+# Q8
+# ============================================================
+
+print("\n========= Q8 ===============================================")
+
+
+# Wrap ALL tools from the lesson for smolagents.
 
 
 @tool
 def list_csv_files() -> dict:
-    """
-    List available CSV files.
+    """List available CSV files in resources/.
 
     Returns:
-        dict: Available CSV filenames.
+        A dictionary containing the available CSV filenames.
     """
 
     return csv_manager.list_csv_files()
 
 
 @tool
-def load_csv(filename: str) -> dict:
-    """
-    Load a CSV file.
+def load_csv(
+    filename: str
+) -> dict:
+    """Load a CSV file and make it the active dataset.
 
     Args:
-        filename: Name of the CSV file.
+        filename: CSV filename in resources/. It may be given
+            with or without the .csv extension.
 
     Returns:
-        dict: Information about the loaded CSV.
+        A dictionary with the load result and column names.
     """
 
-    return csv_manager.load_csv(filename)
+    return csv_manager.load_csv(
+        filename
+    )
 
 
 @tool
-def get_columns() -> list:
-    """
-    Get column names from the loaded CSV.
+def get_columns() -> list | dict:
+    """Return column names for the currently loaded CSV.
 
     Returns:
-        list: Column names.
+        A list of column names, or an error dictionary if no
+        CSV has been loaded.
     """
 
     return csv_manager.get_columns()
@@ -1214,32 +1287,39 @@ def get_columns() -> list:
 def summarize_columns(
     columns: list[str] | None = None
 ) -> dict:
-    """
-    Summarize columns in the loaded CSV.
+    """Return summary statistics for selected columns.
 
     Args:
-        columns: Optional list of columns to summarize.
+        columns: Optional list of column names. If None,
+            summarize all columns.
 
     Returns:
-        dict: Summary statistics.
+        A dictionary containing summary statistics, or an
+        error dictionary.
     """
 
-    return csv_manager.summarize_columns(columns)
+    return csv_manager.summarize_columns(
+        columns
+    )
 
 
 @tool
-def describe_column(column: str) -> dict:
-    """
-    Describe one column in the loaded CSV.
+def describe_column(
+    column: str
+) -> dict:
+    """Describe one column from the active CSV.
 
     Args:
-        column: Name of the column.
+        column: Name of the column to describe.
 
     Returns:
-        dict: Descriptive statistics.
+        A dictionary containing summary statistics, or an
+        error dictionary.
     """
 
-    return csv_manager.describe_column(column)
+    return csv_manager.describe_column(
+        column
+    )
 
 
 @tool
@@ -1247,82 +1327,27 @@ def plot_data(
     y: str,
     x: str | None = None,
     plot_type: str = "line"
-) -> str:
-    """
-    Create a line or scatter plot from the loaded CSV.
+) -> str | dict:
+    """Plot data from the active CSV.
 
     Args:
-        y: Column used for the y-axis.
-        x: Optional column used for the x-axis.
-        plot_type: Plot type, either line or scatter.
+        y: Column name for the y-axis.
+        x: Optional column name for the x-axis.
+        plot_type: Plot type. Use "line" or "scatter".
 
     Returns:
-        str: Description of the plot result.
+        A success message, or an error result.
     """
 
     return csv_manager.plot_data(
         y=y,
         x=x,
-        plot_type=plot_type
+        plot_type=plot_type,
     )
 
 
-@tool
-def compute_correlation(
-    col1: str,
-    col2: str
-) -> dict:
-    """
-    Compute Pearson correlation between two columns.
-
-    Args:
-        col1: Name of the first numeric column.
-        col2: Name of the second numeric column.
-
-    Returns:
-        dict: Column names, Pearson r, and p-value.
-    """
-
-    return csv_manager.compute_correlation(
-        col1,
-        col2
-    )
-
-
-print(compute_correlation.description)
-
-
-# ------------------------------------------------------------
-# Reflection:
-#
-# Smolagents creates the tool description from the function
-# name, type hints, and docstring.
-#
-# The manual JSON schema in Q4 requires more code.
-# Using @tool is simpler because Smolagents builds the tool
-# information automatically.
-#
-# Good docstrings are important because they help the agent
-# understand how and when to use a tool.
-# ------------------------------------------------------------
-
-
-# ============================================================
-# Q8: ToolCallingAgent vs CodeAgent
-# ============================================================
-
-print("\n--------- Q8 -----------------------------------------------")
-
-
-model = OpenAIServerModel(
-    model_id="gpt-4.1-mini",
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-
-# Both agents receive the SAME TOOLS list.
-# The new compute_correlation tool is included with the
-# existing CSV tools from the lesson.
+# Both agents use the SAME list from the lesson,
+# including the new correlation tool.
 
 TOOLS = [
     list_csv_files,
@@ -1331,19 +1356,66 @@ TOOLS = [
     summarize_columns,
     describe_column,
     plot_data,
-    compute_correlation
+    compute_correlation,
 ]
+
+
+api_key = os.getenv(
+    "OPENAI_API_KEY"
+)
+
+
+model = OpenAIServerModel(
+    api_key=api_key,
+    model_id="gpt-4o-mini",
+)
+
+
+TOOL_SYSTEM_PROMPT = (
+    "You are a small data assistant to help analyze files stored in resources/. "
+    "Use the available tools to do any work requested (do not guess). "
+    "Keep answers short and student-friendly."
+)
+
+
+CODE_INSTRUCTIONS = """
+You are a helpful CSV analysis assistant.
+
+You can do two kinds of actions:
+1) Call the provided tools.
+2) Write and execute Python code when tools are not enough.
+
+Rules:
+- Prefer tools for simple tasks.
+- IMPORTANT: If the user requests plot styling such as
+  color, marker, title, labels, or grid that plot_data cannot
+  control, DO NOT call plot_data for that styled plot.
+- Instead, write matplotlib code directly so the plot matches
+  the user's request.
+- Be honest: only claim you did something if the code or tool
+  actually did it.
+- Assume the active dataset lives in csv_manager.df after a
+  CSV is loaded.
+"""
 
 
 tool_agent = ToolCallingAgent(
     tools=TOOLS,
-    model=model
+    model=model,
+    instructions=TOOL_SYSTEM_PROMPT,
 )
 
 
 code_agent = CodeAgent(
     tools=TOOLS,
-    model=model
+    model=model,
+    instructions=CODE_INSTRUCTIONS,
+    additional_authorized_imports=[
+        "pandas",
+        "matplotlib.pyplot",
+        "numpy",
+    ],
+    max_steps=8,
 )
 
 
@@ -1354,97 +1426,63 @@ prompt = (
 )
 
 
-response_tool = tool_agent.run(prompt)
-
-
-response_code = code_agent.run(
+response_tool = tool_agent.run(
     prompt
 )
 
 
-print("ToolCallingAgent Response:")
+response_code = code_agent.run(
+    prompt,
+    additional_args={
+        "csv_manager": csv_manager
+    },
+)
+
+
+print(
+    "ToolCallingAgent Response:"
+)
 print(response_tool)
 
-print("\nCodeAgent Response:")
+print(
+    "\nCodeAgent Response:"
+)
 print(response_code)
 
 
-# ------------------------------------------------------------
 # Q8 Reflection:
 #
-# Both agents received the SAME TOOLS list, including the new
-# compute_correlation tool.
+# The ToolCallingAgent loaded the CSV and used the
+# plot_data tool to create a scatter plot.
 #
-# The ToolCallingAgent can use the available tools directly.
-# It can use load_csv and plot_data, but the plot_data tool
-# does not provide a color argument. Therefore, it cannot
-# directly add the requested green color through that tool.
+# It said the dots were green, but plot_data does not have
+# a color option, so the ToolCallingAgent did not actually
+# control the dot color.
 #
-# The CodeAgent can use the available tools and can also write
-# and run Python code. Therefore, it can create the scatter
-# plot with matplotlib and explicitly set the dots to green.
+# The CodeAgent wrote matplotlib code and used:
+# plt.scatter(x, y, color="green")
+# so it was able to make the dots green.
 #
-# This shows that ToolCallingAgent is useful when the required
-# operation is already available as a defined tool, while
-# CodeAgent is more flexible when the request requires custom
-# Python code or a customization that the existing tool does
-# not support.
+# This shows that ToolCallingAgent is better when the
+# existing tools already support the full task.
 #
-# The important difference in this example is the color:
-# the ToolCallingAgent's plot_data tool does not support a
-# color parameter, while the CodeAgent can generate code that
-# changes the scatter-plot color to green.
-# ------------------------------------------------------------
-
+# CodeAgent is more useful when custom code or extra
+# options, such as plot colors, are needed.
 
 # ============================================================
-# Q9: Final Reflection
+# --- Lesson 04 ---
+# Q9
 # ============================================================
 
-print("\n--------- Q9 -----------------------------------------------")
+print("\n========= Q9 ===============================================")
 
 
-# ------------------------------------------------------------
-# Reflection:
+# Q9 Reflection:
 #
-# 1. What is the main difference between ToolCallingAgent
-#    and CodeAgent?
+# 1. A ToolCallingAgent is better for tasks like loading
+#    a CSV or getting column names because those tasks
+#    already have clear tools.
 #
-#    ToolCallingAgent works by selecting and calling the
-#    tools that have already been provided. It is a good choice
-#    when the required operation already exists as a tool.
-#
-#    CodeAgent can also use tools, but it can write and execute
-#    Python code. This gives it more flexibility for custom
-#    analysis, calculations, and visualizations.
-#
-#
-# 2. What did the agents produce for the scatter-plot request?
-#
-#    Both agents had access to the same TOOLS list. The
-#    ToolCallingAgent could use the existing plot_data tool,
-#    but that tool does not have a color option. The CodeAgent
-#    could generate custom matplotlib code and therefore could
-#    make the requested scatter plot with green dots.
-#
-#
-# 3. What does the color comparison show about when each agent
-#    is useful?
-#
-#    The color comparison shows that a ToolCallingAgent is
-#    useful for predictable tasks that match the capabilities
-#    of existing tools. A CodeAgent is more useful when a task
-#    needs a customization that is not supported by the
-#    existing tools, such as changing the scatter-plot color.
-#
-#
-# 4. When would you choose each agent?
-#
-#    I would choose ToolCallingAgent when I have well-defined
-#    tools and want the agent to use those tools in a controlled
-#    and predictable way.
-#
-#    I would choose CodeAgent when the task requires flexible
-#    Python code, custom calculations, or custom visualizations
-#    that cannot be completed by the existing tools alone.
-# ------------------------------------------------------------
+# 2. A CodeAgent can generate and run Python code.
+#    One risk is that the generated code may contain
+#    errors or perform something unexpected.

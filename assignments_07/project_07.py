@@ -8,180 +8,187 @@ import pandas as pd
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 from scipy.stats import pearsonr
 from dotenv import load_dotenv
 
-from smolagents import CodeAgent, OpenAIServerModel, tool
+from smolagents import (
+    CodeAgent,
+    OpenAIServerModel,
+    tool,
+)
 
 
 # ============================================================
-# .env setup
+# .env SETUP
 # ============================================================
 
 if load_dotenv():
     print("API key loaded successfully.")
 else:
-    print("Warning: could not load API key. Check your .env file.")
+    print(
+        "Warning: could not load API key. "
+        "Check your .env file."
+    )
 
 
 # ============================================================
-# Paths
+# PATHS
 # ============================================================
 
-PROJECT_DIR = Path(__file__).resolve().parent
-
-# Primary merged dataset:
-# assignments_01/
-#     outputs/
-#         merged_happiness.csv
+# Run this project from the repository root with:
 #
-# Project:
-# assignments_07/
-#     project_07.py
-#     outputs/
+# python assignments_07/project_07.py
 
-DATA_PATH = (
-    PROJECT_DIR
-    / ".."
-    / "assignments_01"
-    / "outputs"
-    / "merged_happiness.csv"
-).resolve()
+DATA_PATH = Path(
+    "assignments_01/outputs/merged_happiness.csv"
+)
 
+FALLBACK_DIR = Path(
+    "assignments/resources/happiness_project"
+)
 
-# Required fallback location inside the repository:
-# assignments/
-#     resources/
-#         happiness_project/
+OUTPUT_DIR = Path(
+    "assignments_07/outputs"
+)
 
-FALLBACK_DIR = (
-    PROJECT_DIR
-    / ".."
-    / "resources"
-    / "happiness_project"
-).resolve()
+OUTPUT_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
 
-OUTPUT_DIR = PROJECT_DIR / "outputs"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# Global DataFrame used by the tools.
+# Shared global DataFrame required by the assignment.
 df = None
 
 
 # ============================================================
-# Helper function
+# HELPER FUNCTION
 # ============================================================
 
 def clean_columns(dataframe):
     """
-    Clean and standardize column names in a DataFrame.
+    Clean and standardize DataFrame column names.
 
     Args:
-        dataframe: The pandas DataFrame whose column names
-            should be cleaned.
+        dataframe: Pandas DataFrame whose columns should
+            be cleaned.
 
     Returns:
-        pandas.DataFrame: The DataFrame with lowercase column
-            names, stripped whitespace, and spaces replaced
-            with underscores.
+        pandas.DataFrame: DataFrame with lowercase column
+            names and spaces replaced with underscores.
     """
 
     dataframe.columns = (
-        dataframe.columns
+        dataframe
+        .columns
         .str.strip()
         .str.lower()
-        .str.replace(" ", "_", regex=False)
+        .str.replace(
+            " ",
+            "_",
+            regex=False
+        )
     )
 
     # Make common country column names consistent.
     if "country_name" in dataframe.columns:
         dataframe = dataframe.rename(
-            columns={"country_name": "country"}
+            columns={
+                "country_name": "country"
+            }
         )
 
     if "country_or_region" in dataframe.columns:
         dataframe = dataframe.rename(
-            columns={"country_or_region": "country"}
+            columns={
+                "country_or_region": "country"
+            }
         )
 
-    # Make common region column names consistent.
+    # Make the region name easier to use for plotting.
     if "regional_indicator" in dataframe.columns:
         dataframe = dataframe.rename(
-            columns={"regional_indicator": "region"}
-        )
-
-    if "region_name" in dataframe.columns:
-        dataframe = dataframe.rename(
-            columns={"region_name": "region"}
+            columns={
+                "regional_indicator": "region"
+            }
         )
 
     return dataframe
 
 
 # ============================================================
-# Task 1 - Tool 1
+# TASK 1 - TOOL 1
 # ============================================================
 
 @tool
 def load_happiness_data() -> dict:
-    """
-    Load the World Happiness dataset.
+    """Load the World Happiness dataset into memory.
 
-    The function first attempts to load the merged happiness
-    dataset from assignments_01/outputs/merged_happiness.csv.
-    If that file does not exist, the function loads the yearly
-    CSV files from assignments/resources/happiness_project/
-    and combines them into one DataFrame.
+    The function first tries to load the merged CSV from
+    assignments_01/outputs/merged_happiness.csv. If that file
+    is not available, it loads and combines the yearly CSV
+    files from assignments/resources/happiness_project/.
+    The final DataFrame is stored in the global df variable.
 
     Returns:
-        dict: A dictionary containing the dataset shape and
-        column names, or an error message if the data cannot
-        be loaded.
+        A dictionary containing the dataset "shape" and
+        "columns", or an error dictionary if loading fails.
     """
 
     global df
 
     # --------------------------------------------------------
-    # Try the primary merged dataset first.
+    # Primary merged dataset
     # --------------------------------------------------------
 
     if DATA_PATH.exists():
 
         try:
-            df = pd.read_csv(DATA_PATH)
+            df = pd.read_csv(
+                DATA_PATH
+            )
 
         except Exception as error:
+
+            df = None
+
             return {
                 "error": (
-                    f"Could not read merged dataset: {error}"
+                    "Could not read the merged dataset: "
+                    f"{error}"
                 )
             }
 
     # --------------------------------------------------------
-    # Required fallback.
+    # Required fallback
     # --------------------------------------------------------
 
     else:
 
-        all_df = []
-
         if not FALLBACK_DIR.exists():
+
+            df = None
+
             return {
                 "error": (
-                    "Neither the merged happiness dataset nor "
-                    "the fallback directory was found."
+                    "Neither the merged dataset nor the "
+                    "required fallback directory was found."
                 )
             }
 
+        yearly_frames = []
+
         csv_files = sorted(
-            FALLBACK_DIR.glob("*.csv")
+            FALLBACK_DIR.glob(
+                "*.csv"
+            )
         )
 
         if not csv_files:
+
+            df = None
+
             return {
                 "error": (
                     "No yearly happiness CSV files were found "
@@ -191,11 +198,17 @@ def load_happiness_data() -> dict:
 
         for file_path in csv_files:
 
-            # Extract year from filename.
+            # Get the year from names such as:
+            # 2015.csv
+            # happiness_2015.csv
+
             try:
                 year = int(
-                    file_path.stem.split("_")[-1]
+                    file_path
+                    .stem
+                    .split("_")[-1]
                 )
+
             except ValueError:
                 continue
 
@@ -207,6 +220,9 @@ def load_happiness_data() -> dict:
                 )
 
             except Exception as error:
+
+                df = None
+
                 return {
                     "error": (
                         f"Could not read {file_path.name}: "
@@ -214,43 +230,61 @@ def load_happiness_data() -> dict:
                     )
                 }
 
-            # Rename columns used by yearly datasets.
+            # Standardize yearly dataset columns.
+
             if "Ladder score" in temp_df.columns:
                 temp_df = temp_df.rename(
                     columns={
-                        "Ladder score": "Happiness score"
+                        "Ladder score":
+                            "Happiness score"
                     }
                 )
 
             if "Country or region" in temp_df.columns:
                 temp_df = temp_df.rename(
                     columns={
-                        "Country or region": "Country name"
+                        "Country or region":
+                            "Country"
+                    }
+                )
+
+            if "Country name" in temp_df.columns:
+                temp_df = temp_df.rename(
+                    columns={
+                        "Country name":
+                            "Country"
                     }
                 )
 
             temp_df["year"] = year
 
-            all_df.append(temp_df)
+            yearly_frames.append(
+                temp_df
+            )
 
-        if not all_df:
+        if not yearly_frames:
+
+            df = None
+
             return {
                 "error": (
-                    "No usable yearly happiness CSV files "
-                    "were found."
+                    "No usable yearly happiness CSV "
+                    "files were found."
                 )
             }
 
         df = pd.concat(
-            all_df,
+            yearly_frames,
             ignore_index=True
         )
 
     # --------------------------------------------------------
-    # Clean column names.
+    # Clean columns
     # --------------------------------------------------------
 
-    df = clean_columns(df)
+    df = clean_columns(
+        df
+    )
 
     return {
         "shape": df.shape,
@@ -259,37 +293,38 @@ def load_happiness_data() -> dict:
 
 
 # ============================================================
-# Task 1 - Tool 2
+# TASK 1 - TOOL 2
 # ============================================================
 
 @tool
-def summarize_column(column: str) -> dict:
-    """
-    Return descriptive statistics for one dataset column.
+def summarize_column(
+    column: str
+) -> dict:
+    """Return descriptive statistics for one column.
 
     Args:
-        column: The name of the column to summarize.
+        column: Name of the column to summarize.
 
     Returns:
-        dict: A dictionary containing descriptive statistics
-        for the requested column, or an error message if the
-        column does not exist.
+        A dictionary containing statistics from
+        pandas.Series.describe(), or an error dictionary if
+        the data is not loaded or the column is not found.
     """
 
     global df
 
     if df is None:
-
-        result = load_happiness_data()
-
-        if "error" in result:
-            return result
+        return {
+            "error": (
+                "Data is not loaded. "
+                "Call load_happiness_data first."
+            )
+        }
 
     if column not in df.columns:
         return {
             "error": (
-                f"Column '{column}' not found. "
-                f"Available columns: {df.columns.tolist()}"
+                f"Column '{column}' was not found."
             )
         }
 
@@ -305,7 +340,10 @@ def summarize_column(column: str) -> dict:
 
         for key, value in summary.items():
 
-            if hasattr(value, "item"):
+            if hasattr(
+                value,
+                "item"
+            ):
                 value = value.item()
 
             cleaned_summary[key] = value
@@ -320,7 +358,7 @@ def summarize_column(column: str) -> dict:
 
 
 # ============================================================
-# Task 1 - Tool 3
+# TASK 1 - TOOL 3
 # ============================================================
 
 @tool
@@ -328,54 +366,55 @@ def compute_correlation(
     col1: str,
     col2: str
 ) -> dict:
-    """
-    Compute the Pearson correlation between two numeric columns.
+    """Compute the Pearson correlation between two numeric columns.
 
     Args:
-        col1: The name of the first numeric column.
-        col2: The name of the second numeric column.
+        col1: Name of the first numeric column.
+        col2: Name of the second numeric column.
 
     Returns:
-        dict: A dictionary containing col1, col2, pearson_r,
-        and p_value.
+        A dictionary containing "col1", "col2", "pearson_r",
+        and "p_value", or an error dictionary for invalid input.
     """
 
     global df
 
     if df is None:
-
-        result = load_happiness_data()
-
-        if "error" in result:
-            return result
+        return {
+            "error": (
+                "Data is not loaded. "
+                "Call load_happiness_data first."
+            )
+        }
 
     if col1 not in df.columns:
         return {
             "error": (
-                f"Column '{col1}' not found. "
-                f"Available columns: {df.columns.tolist()}"
+                f"Column '{col1}' was not found."
             )
         }
 
     if col2 not in df.columns:
         return {
             "error": (
-                f"Column '{col2}' not found. "
-                f"Available columns: {df.columns.tolist()}"
+                f"Column '{col2}' was not found."
             )
         }
 
     try:
 
-        data = df[
-            [col1, col2]
-        ].dropna()
+        data = (
+            df[
+                [col1, col2]
+            ]
+            .dropna()
+        )
 
         if len(data) < 2:
             return {
                 "error": (
-                    "Not enough valid data points to "
-                    "calculate correlation."
+                    "Not enough valid data points "
+                    "to compute the correlation."
                 )
             }
 
@@ -401,13 +440,14 @@ def compute_correlation(
 
         return {
             "error": (
-                f"Could not compute correlation: {error}"
+                "Could not compute correlation: "
+                f"{error}"
             )
         }
 
 
 # ============================================================
-# Task 1 - Tool 4
+# TASK 1 - TOOL 4
 # ============================================================
 
 @tool
@@ -415,67 +455,73 @@ def get_top_n_countries(
     column: str,
     year: int,
     n: int = 5
-) -> dict:
-    """
-    Return the top N countries for a column in a specific year.
+) -> list[dict] | dict:
+    """Return the top N countries for a column in a specific year.
 
     Args:
-        column: The column used to rank the countries.
-        year: The year used to filter the dataset.
-        n: The number of countries to return.
+        column: Name of the column used to rank countries.
+        year: Year used to filter the dataset.
+        n: Number of top countries to return.
 
     Returns:
-        dict: A dictionary containing the top countries and
-        their values, or an error message if the requested
-        column, year, or country data is unavailable.
+        A list of dictionaries containing "country" and the
+        requested column value. Returns an error dictionary
+        when the input is invalid.
     """
 
     global df
 
     if df is None:
-
-        result = load_happiness_data()
-
-        if "error" in result:
-            return result
+        return {
+            "error": (
+                "Data is not loaded. "
+                "Call load_happiness_data first."
+            )
+        }
 
     if column not in df.columns:
         return {
             "error": (
-                f"Column '{column}' not found. "
-                f"Available columns: {df.columns.tolist()}"
+                f"Column '{column}' was not found."
             )
         }
 
     if "country" not in df.columns:
         return {
             "error": (
-                "Column 'country' not found."
+                "Column 'country' was not found."
             )
         }
 
     if "year" not in df.columns:
         return {
             "error": (
-                "Column 'year' not found."
+                "Column 'year' was not found."
             )
         }
 
     if n <= 0:
         return {
-            "error": "n must be greater than 0."
+            "error": (
+                "n must be greater than 0."
+            )
         }
 
     try:
 
-        filtered = df[
-            df["year"] == year
-        ]
+        filtered = (
+            df[
+                df["year"] == year
+            ]
+            .dropna(
+                subset=[column]
+            )
+        )
 
         if filtered.empty:
             return {
                 "error": (
-                    f"No data found for year {year}."
+                    f"No data was found for year {year}."
                 )
             }
 
@@ -488,18 +534,14 @@ def get_top_n_countries(
             .head(n)
         )
 
-        results = top[
-            ["country", column]
-        ].to_dict(
-            orient="records"
+        return (
+            top[
+                ["country", column]
+            ]
+            .to_dict(
+                orient="records"
+            )
         )
-
-        return {
-            "year": year,
-            "column": column,
-            "n": n,
-            "results": results
-        }
 
     except Exception as error:
 
@@ -509,7 +551,7 @@ def get_top_n_countries(
 
 
 # ============================================================
-# Task 2 - Build the CodeAgent
+# TASK 2 - BUILD THE AGENT
 # ============================================================
 
 api_key = os.getenv(
@@ -524,54 +566,47 @@ if not api_key:
 
 
 model = OpenAIServerModel(
-    model_id="gpt-4o-mini",
-    api_key=api_key
+    api_key=api_key,
+    model_id="gpt-4o-mini"
 )
 
 
 SYSTEM_PROMPT = """
 You are a data analyst assistant for the World Happiness dataset.
 
-Use the available tools for:
-- loading the World Happiness data
-- summarizing columns
-- computing Pearson correlations
-- ranking countries by a column and year
+Use the available tools for loading data, summarizing columns,
+computing correlations, and ranking countries.
 
-Important rules:
+Write Python code directly only when the tools are not sufficient,
+for example when creating custom plots.
 
-1. Use the tools when the question requires data from
-   the World Happiness dataset.
+Rules:
 
-2. Do not guess values that are not present in the data.
+1. Use load_happiness_data first when the dataset is not loaded.
 
-3. If the data has not been loaded, use
-   load_happiness_data first.
+2. load_happiness_data returns a dictionary with "shape" and
+   "columns". Use that returned dictionary when answering the
+   loading question.
 
-4. For correlations, use compute_correlation and report
-   Pearson r and the p-value. A p-value below 0.05 is
-   considered statistically significant.
+3. Use summarize_column for column summaries.
 
-5. For country rankings, use get_top_n_countries.
+4. Use compute_correlation for correlations.
 
-6. For custom plots, use the real World Happiness data.
+5. For statistical significance, use p < 0.05.
 
-7. Do not create fake, simulated, or random data.
+6. Use get_top_n_countries for country rankings.
 
-8. Use pandas and matplotlib for custom plots.
+7. Do not create fake, simulated, or random World Happiness data.
 
-9. Save requested plots to the exact path requested by
-   the user.
+8. For custom plots, use the real DataFrame passed as df.
 
-10. The project output directory is:
-    outputs/
+9. Use pandas and matplotlib for custom plots.
 
-11. For the regional happiness line chart, use:
-    - happiness_score on the y-axis
-    - year on the x-axis
-    - one line for each region
-    - save the result as:
-      outputs/happiness_by_region.png
+10. When the user gives a plot path, save the plot to exactly
+    that path. Do not change the directory or filename.
+
+11. The project output directory is:
+    assignments_07/outputs/
 
 12. Keep answers concise and student-friendly.
 """
@@ -588,10 +623,7 @@ agent = CodeAgent(
     instructions=SYSTEM_PROMPT,
     additional_authorized_imports=[
         "pandas",
-        "numpy",
-        "matplotlib",
         "matplotlib.pyplot",
-        "scipy",
         "scipy.stats"
     ],
     max_steps=8
@@ -599,126 +631,7 @@ agent = CodeAgent(
 
 
 # ============================================================
-# Helper for required Query 5 plot
-# ============================================================
-
-def create_happiness_by_region_plot():
-    """
-    Create the required regional happiness line chart.
-
-    Uses the loaded World Happiness DataFrame and saves the
-    chart to outputs/happiness_by_region.png.
-
-    Returns:
-        bool: True if the plot was created successfully,
-        otherwise False.
-    """
-
-    global df
-
-    if df is None:
-        result = load_happiness_data()
-
-        if "error" in result:
-            print(
-                "Could not create required plot:",
-                result
-            )
-            return False
-
-    required_columns = [
-        "year",
-        "region",
-        "happiness_score"
-    ]
-
-    missing = [
-        column
-        for column in required_columns
-        if column not in df.columns
-    ]
-
-    if missing:
-        print(
-            "Could not create required regional plot. "
-            f"Missing columns: {missing}"
-        )
-        return False
-
-    plot_data = (
-        df[
-            [
-                "year",
-                "region",
-                "happiness_score"
-            ]
-        ]
-        .dropna()
-        .groupby(
-            ["year", "region"],
-            as_index=False
-        )["happiness_score"]
-        .mean()
-    )
-
-    if plot_data.empty:
-        print(
-            "Could not create required regional plot "
-            "because no valid data was available."
-        )
-        return False
-
-    plt.figure(
-        figsize=(10, 6)
-    )
-
-    for region_name, region_data in plot_data.groupby(
-        "region"
-    ):
-
-        plt.plot(
-            region_data["year"],
-            region_data["happiness_score"],
-            marker="o",
-            label=region_name
-        )
-
-    plt.title(
-        "World Happiness Score by Region Over Time"
-    )
-
-    plt.xlabel("Year")
-    plt.ylabel("Happiness Score")
-
-    plt.legend(
-        title="Region",
-        bbox_to_anchor=(1.05, 1),
-        loc="upper left"
-    )
-
-    plt.tight_layout()
-
-    output_path = (
-        OUTPUT_DIR
-        / "happiness_by_region.png"
-    )
-
-    plt.savefig(
-        output_path,
-        dpi=150
-    )
-
-    plt.close()
-
-    print(
-        f"Required plot saved to: {output_path}"
-    )
-
-    return True
-
-
-# ============================================================
-# Task 3 and Task 4
+# TASK 3 AND TASK 4
 # ============================================================
 
 if __name__ == "__main__":
@@ -727,50 +640,46 @@ if __name__ == "__main__":
         "\n===== WORLD HAPPINESS AGENT ====="
     )
 
-    print(
-        "\nPrimary data path:"
-    )
-    print(DATA_PATH)
-
-    print(
-        "\nFallback directory:"
-    )
-    print(FALLBACK_DIR)
-
-    print(
-        "\nOutput directory:"
-    )
-    print(OUTPUT_DIR)
-
     # ========================================================
-    # Task 3 - Guided Queries
+    # TASK 3 - GUIDED QUERIES
     # ========================================================
 
     queries = [
 
-        # Guided Query 1
-        "Load the happiness data and tell me its shape and column names.",
+        # Query 1
+        (
+            "Load the happiness data and tell me "
+            "its shape and column names."
+        ),
 
-        # Guided Query 2
-        "Summarize the happiness_score column.",
+        # Query 2
+        (
+            "Summarize the happiness_score column."
+        ),
 
-        # Guided Query 3
+        # Query 3
         (
             "What is the correlation between "
             "gdp_per_capita and happiness_score? "
             "Is it statistically significant?"
         ),
 
-        # Guided Query 4
-        "Show me the top 5 happiest countries in 2020.",
+        # Query 4
+        (
+            "Show me the top 5 happiest countries "
+            "in 2020."
+        ),
 
-        # Guided Query 5
+        # Query 5
         (
             "Plot happiness_score over the years as a line chart, "
             "with one line per region. Save the plot to "
-            "outputs/happiness_by_region.png."
+            "assignments_07/outputs/happiness_by_region.png. "
+            "Use exactly this path and do not change the "
+            "directory or filename."
         )
     ]
+
 
     for query_number, query in enumerate(
         queries,
@@ -778,57 +687,58 @@ if __name__ == "__main__":
     ):
 
         print(
-            "\n" + "=" * 60
+            f"\n--- Query: {query} ---"
         )
 
-        print(
-            f"Guided Query {query_number}:"
-        )
+        # Query 1 loads the shared global DataFrame.
+        if query_number == 1:
 
-        print(query)
+            response = agent.run(
+                query,
+                reset=False
+            )
 
-        print(
-            "=" * 60
-        )
+        # After Query 1, give the CodeAgent access to df.
+        else:
 
-        response = agent.run(
-            query,
-            reset=False
-        )
+            response = agent.run(
+                query,
+                additional_args={
+                    "df": df
+                },
+                reset=False
+            )
 
         print(response)
 
-        # ----------------------------------------------------
-        # Query 5 verification.
-        # ----------------------------------------------------
-
-        if query_number == 5:
-
-            required_plot = (
-                OUTPUT_DIR
-                / "happiness_by_region.png"
-            )
-
-            if required_plot.exists():
-
-                print(
-                    "Verified: "
-                    f"{required_plot} was created."
-                )
-
-            else:
-
-                print(
-                    "The agent did not create the required "
-                    "plot file, so the required regional "
-                    "plot will now be created from the "
-                    "World Happiness data."
-                )
-
-                create_happiness_by_region_plot()
 
     # ========================================================
-    # Task 4 - My Own Questions
+    # VERIFY QUERY 5 PLOT
+    # ========================================================
+
+    plot_path = Path(
+        "assignments_07/outputs/happiness_by_region.png"
+    )
+
+    if plot_path.exists():
+
+        print(
+            "Verified: "
+            "assignments_07/outputs/happiness_by_region.png "
+            "was created by the agent."
+        )
+
+    else:
+
+        print(
+            "Plot verification failed: "
+            "assignments_07/outputs/happiness_by_region.png "
+            "was not created."
+        )
+
+
+    # ========================================================
+    # TASK 4 - MY OWN QUESTIONS
     # ========================================================
 
     # --------------------------------------------------------
@@ -837,11 +747,15 @@ if __name__ == "__main__":
 
     my_query_1 = (
         "What is the correlation between "
-        "freedom_to_make_life_choices and happiness_score?"
+        "freedom_to_make_life_choices "
+        "and happiness_score?"
     )
 
     response_1 = agent.run(
         my_query_1,
+        additional_args={
+            "df": df
+        },
         reset=False
     )
 
@@ -851,9 +765,9 @@ if __name__ == "__main__":
 
     print(response_1)
 
-    # The compute_correlation tool is used because this
-    # question asks for a Pearson correlation between two
-    # columns in the World Happiness dataset.
+    # Comment:
+    # This triggered tool use because the agent could use
+    # compute_correlation. It did not need custom code.
 
 
     # --------------------------------------------------------
@@ -861,12 +775,17 @@ if __name__ == "__main__":
     # --------------------------------------------------------
 
     my_query_2 = (
-        "Create a histogram of happiness_score and "
-        "save it as outputs/happiness_histogram.png."
+        "Create a histogram of happiness_score and save it to "
+        "assignments_07/outputs/happiness_histogram.png. "
+        "Use exactly this path and do not change the "
+        "directory or filename."
     )
 
     response_2 = agent.run(
         my_query_2,
+        additional_args={
+            "df": df
+        },
         reset=False
     )
 
@@ -876,13 +795,39 @@ if __name__ == "__main__":
 
     print(response_2)
 
-    # The CodeAgent generates and runs Python code with
-    # pandas and matplotlib because this question requires
-    # creating and saving a custom histogram.
+    # Comment:
+    # This triggered code generation because none of the
+    # available tools creates a histogram. The CodeAgent had
+    # to write matplotlib code using the real DataFrame.
+
+
+    # ========================================================
+    # OPTIONAL HISTOGRAM VERIFICATION
+    # ========================================================
+
+    histogram_path = Path(
+        "assignments_07/outputs/happiness_histogram.png"
+    )
+
+    if histogram_path.exists():
+
+        print(
+            "Verified: "
+            "assignments_07/outputs/happiness_histogram.png "
+            "was created by the agent."
+        )
+
+    else:
+
+        print(
+            "Histogram verification failed: "
+            "assignments_07/outputs/happiness_histogram.png "
+            "was not created."
+        )
 
 
 # ============================================================
-# Task 5 - Reflection
+# TASK 5 - REFLECTION
 # ============================================================
 
 # --- Reflection ---
@@ -891,29 +836,26 @@ if __name__ == "__main__":
 #    correlation was statistically significant? Did it use
 #    the p-value correctly? What threshold did it apply?
 #
-#    The agent used the p-value returned by the
-#    compute_correlation tool. A correlation was considered
-#    statistically significant when p < 0.05.
+#    The compute_correlation tool returned Pearson r and the
+#    p-value. The agent used the p-value to explain statistical
+#    significance. If p < 0.05, the result was considered
+#    statistically significant. The threshold was 0.05.
 #
 #
 # 2. Did any of the agent's responses surprise you — either
 #    by being more capable than you expected, or less?
 #    Describe one specific example.
 #
-#    I was surprised that the CodeAgent could use the
-#    World Happiness data and create a custom regional
-#    line chart using pandas and matplotlib. The tool
-#    functions handled the structured data questions,
-#    while the CodeAgent could generate custom Python
-#    code for the plotting task.
+#    I was surprised that the CodeAgent could write matplotlib
+#    code for a custom plot when the existing tools were not
+#    enough.
 #
 #
 # 3. What one additional tool would make this agent meaningfully
 #    more useful? Describe what it would do and what kind of
 #    question it would help the agent answer.
 #
-#    A plotting tool would make the agent more useful.
-#    It could create charts directly from the World
-#    Happiness data, helping answer questions about trends,
-#    distributions, and comparisons between countries
-#    or regions.
+#    A plotting tool would make the agent more useful. It could
+#    create common charts such as line charts, histograms, and
+#    scatter plots to answer questions about trends,
+#    distributions, and comparisons.
