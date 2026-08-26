@@ -28,7 +28,7 @@ else:
 
 # ============================================================
 # Paths
-
+# ============================================================
 
 PROJECT_DIR = Path(__file__).resolve().parent
 
@@ -39,6 +39,10 @@ PROJECT_DIR = Path(__file__).resolve().parent
 # assignments_01/
 #     outputs/
 #         merged_happiness.csv
+#
+# resources/
+#     happiness_project/
+#         yearly happiness CSV files
 
 DATA_PATH = (
     PROJECT_DIR
@@ -49,17 +53,13 @@ DATA_PATH = (
 ).resolve()
 
 
-
-# ../../python-200/assignments/resources/happiness_project
-#
-
+# Required fallback location:
+# assignments/resources/happiness_project/
+# when project_07.py is inside assignments_07/
 
 FALLBACK_DIR = (
     PROJECT_DIR
     / ".."
-    / ".."
-    / "python-200"
-    / "assignments"
     / "resources"
     / "happiness_project"
 ).resolve()
@@ -75,7 +75,7 @@ df = None
 
 # ============================================================
 # Helper function
-
+# ============================================================
 
 def clean_columns(dataframe):
     """
@@ -83,6 +83,13 @@ def clean_columns(dataframe):
 
     Converts column names to lowercase, strips leading and
     trailing spaces, and replaces spaces with underscores.
+
+    Args:
+        dataframe: Pandas DataFrame whose column names should
+            be cleaned.
+
+    Returns:
+        pandas.DataFrame: DataFrame with cleaned column names.
     """
 
     dataframe.columns = (
@@ -109,20 +116,26 @@ def clean_columns(dataframe):
 
 # ============================================================
 # Task 1 - Tool 1
-
+# ============================================================
 
 @tool
 def load_happiness_data() -> dict:
     """
     Load the World Happiness dataset.
 
-    First, this function tries to load the merged happiness CSV.
-    If that file does not exist, it loads the yearly CSV files
-    from the required fallback directory and combines them.
+    The function first attempts to load the merged happiness
+    CSV from assignments_01/outputs/. If that file does not
+    exist, it loads the yearly CSV files from the required
+    resources/happiness_project/ fallback directory and
+    combines them into one DataFrame.
+
+    Args:
+        None.
 
     Returns:
-        dict: Dataset shape and column names, or an error message
-        if the dataset cannot be loaded.
+        dict: A dictionary containing the dataset shape and
+        column names, or an error message if the dataset
+        cannot be loaded.
     """
 
     global df
@@ -313,8 +326,10 @@ def compute_correlation(
         col2: Name of the second numeric column.
 
     Returns:
-        dict: Column names, Pearson correlation, p-value,
-        and statistical significance.
+        dict: A dictionary containing the two column names,
+        Pearson correlation coefficient, p-value, and whether
+        the correlation is statistically significant at the
+        0.05 level.
     """
 
     global df
@@ -392,12 +407,13 @@ def get_top_n_countries(
 
     Args:
         column: Column used to rank the countries.
-        year: Year to filter the dataset.
+        year: Year used to filter the dataset.
         n: Number of countries to return.
 
     Returns:
         list: A list of dictionaries containing country names
-        and their values for the requested column.
+        and their values for the requested column, or an error
+        dictionary if the requested data is unavailable.
     """
 
     global df
@@ -559,18 +575,6 @@ if __name__ == "__main__":
 
     print("\n===== WORLD HAPPINESS AGENT =====")
 
-    print("\nProject directory:")
-    print(PROJECT_DIR)
-
-    print("\nPrimary data path:")
-    print(DATA_PATH)
-
-    print("\nFallback directory:")
-    print(FALLBACK_DIR)
-
-    print("\nOutput directory:")
-    print(OUTPUT_DIR)
-
     # ========================================================
     # Task 3 - Guided Queries
     # ========================================================
@@ -614,6 +618,27 @@ if __name__ == "__main__":
 
         print(response)
 
+    # --------------------------------------------------------
+    # Verify the required Guided Query 5 output.
+    # --------------------------------------------------------
+
+    happiness_by_region_path = (
+        OUTPUT_DIR / "happiness_by_region.png"
+    )
+
+    print("\nGuided Query 5 plot verification:")
+
+    if happiness_by_region_path.exists():
+        print(
+            "Verified: happiness_by_region.png "
+            "was saved to outputs/."
+        )
+    else:
+        print(
+            "Warning: happiness_by_region.png "
+            "was not found in outputs/."
+        )
+
     # ========================================================
     # Task 4 - My Own Questions
     # ========================================================
@@ -635,6 +660,11 @@ if __name__ == "__main__":
     print("\n--- My Query 1 ---")
     print(response_1)
 
+    # The agent used the compute_correlation tool because
+    # this question required calculating a Pearson correlation
+    # from the World Happiness dataset. No custom code
+    # generation was needed for this question.
+
     # --------------------------------------------------------
     # My Query 2
     # --------------------------------------------------------
@@ -652,16 +682,10 @@ if __name__ == "__main__":
     print("\n--- My Query 2 ---")
     print(response_2)
 
-    # ========================================================
-    # Task 4 Reflection
-    # ========================================================
-
-    # The first question used the compute_correlation tool
-    # because the tool can calculate Pearson correlation
-    # and return the p-value.
-    #
-    # The second question required the agent to create a
-    # histogram using the real happiness data and matplotlib.
+    # The agent generated and ran custom Python code using
+    # pandas and matplotlib to create the histogram from the
+    # real World Happiness data. This question required
+    # code generation rather than one of the four data tools.
 
 
 # ============================================================
@@ -685,9 +709,9 @@ if __name__ == "__main__":
 #
 #    I was surprised that the agent could use the data-analysis
 #    tools to answer questions about correlations and country
-#    rankings. It was also interesting that custom plotting
-#    required the CodeAgent to write Python code using pandas
-#    and matplotlib.
+#    rankings. It was also interesting that the CodeAgent could
+#    generate and run Python code with pandas and matplotlib for
+#    custom plotting.
 #
 #
 # 3. What one additional tool would make this agent meaningfully
