@@ -12,7 +12,12 @@ from scipy.stats import pearsonr
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from smolagents import ToolCallingAgent, CodeAgent, OpenAIServerModel, tool
+from smolagents import (
+    ToolCallingAgent,
+    CodeAgent,
+    OpenAIServerModel,
+    tool
+)
 
 
 # ============================================================
@@ -54,9 +59,8 @@ def celsius_to_fahrenheit(celsius: float) -> str:
     return f"{celsius}°C is {fahrenheit}°F"
 
 
-# JSON schema dictionary in the same standalone format
-# used in the lesson.
-
+# Standalone function schema.
+# This follows the lesson format.
 celsius_to_fahrenheit_schema = {
     "name": "celsius_to_fahrenheit",
     "description": "Convert a temperature from Celsius to Fahrenheit.",
@@ -77,21 +81,16 @@ print(
     f"celsius_to_fahrenheit(0) = "
     f"{celsius_to_fahrenheit(0)}"
 )
-# This directly tests the Celsius-to-Fahrenheit tool with 0°C.
-
 
 print(
     f"celsius_to_fahrenheit(100) = "
     f"{celsius_to_fahrenheit(100)}"
 )
-# This directly tests the Celsius-to-Fahrenheit tool with 100°C.
-
 
 print(
     f"celsius_to_fahrenheit(-40) = "
     f"{celsius_to_fahrenheit(-40)}"
 )
-# This directly tests the Celsius-to-Fahrenheit tool with -40°C.
 
 
 # ============================================================
@@ -104,6 +103,9 @@ print("\n--------- Q2 -----------------------------------------------")
 def get_current_time() -> str:
     """
     Return the current local time as a formatted string.
+
+    Returns:
+        str: The current local date and time.
     """
 
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -131,6 +133,12 @@ tools = [
 def run_agent(user_prompt: str) -> str:
     """
     Run a minimal ReAct-style agent for one user prompt.
+
+    Args:
+        user_prompt: User question or request.
+
+    Returns:
+        str: The final response from the model.
     """
 
     system_prompt = """
@@ -161,13 +169,18 @@ def run_agent(user_prompt: str) -> str:
 
     first_message = first_response.choices[0].message
 
-    messages.append(
-        {
-            "role": "assistant",
-            "content": first_message.content,
-            "tool_calls": first_message.tool_calls
-        }
-    )
+    assistant_message = {
+        "role": "assistant",
+        "content": first_message.content
+    }
+
+    if first_message.tool_calls:
+        assistant_message["tool_calls"] = [
+            tc.model_dump()
+            for tc in first_message.tool_calls
+        ]
+
+    messages.append(assistant_message)
 
     # Check if the model requested a tool.
     if first_message.tool_calls:
@@ -217,25 +230,22 @@ def run_agent(user_prompt: str) -> str:
 # ------------------------------------------------------------
 # Prediction before calling run_agent()
 #
-# Will run_agent("Convert 100 degrees Celsius to Fahrenheit")
-# trigger a tool call?
+# Prediction:
+# 1. The model should NOT call get_current_time because the
+#    question asks for a temperature conversion, not the time.
 #
-# No. The only available tool is get_current_time, which is
-# not relevant to a Celsius-to-Fahrenheit conversion.
-#
-# How many API calls will be made?
-#
-# One API call will be made because no tool call is needed.
+# 2. I expect one API call because no tool should be needed.
 # ------------------------------------------------------------
-
 
 response = run_agent(
     "Convert 100 degrees Celsius to Fahrenheit."
 )
 
 print("Result:", response)
-# No get_current_time tool was called because the question
-# is about temperature conversion, not the current time.
+
+# No tool was called because the question did not ask for
+# the current time. The model answered the temperature
+# conversion directly, so only one API call was needed.
 
 
 # ============================================================
@@ -245,18 +255,28 @@ print("Result:", response)
 print("\n--------- Q3 -----------------------------------------------")
 
 
+# OpenAI API tool format for the Celsius conversion tool.
+celsius_to_fahrenheit_openai_tool = {
+    "type": "function",
+    "function": celsius_to_fahrenheit_schema
+}
+
+
 tools = [
     get_current_time_schema,
-    {
-        "type": "function",
-        "function": celsius_to_fahrenheit_schema
-    }
+    celsius_to_fahrenheit_openai_tool
 ]
 
 
 def run_agent(user_prompt: str) -> str:
     """
     Run a ReAct-style agent with two available tools.
+
+    Args:
+        user_prompt: User question or request.
+
+    Returns:
+        str: The final response from the model.
     """
 
     system_prompt = """
@@ -291,7 +311,10 @@ def run_agent(user_prompt: str) -> str:
     }
 
     if first_message.tool_calls:
-        assistant_message["tool_calls"] = first_message.tool_calls
+        assistant_message["tool_calls"] = [
+            tc.model_dump()
+            for tc in first_message.tool_calls
+        ]
 
     messages.append(assistant_message)
 
@@ -354,8 +377,10 @@ response_a = run_agent(
 )
 
 print("Response A:", response_a)
-# The celsius_to_fahrenheit tool was called because the
-# question requires a Celsius-to-Fahrenheit conversion.
+
+# A tool was called because the question required a
+# Celsius-to-Fahrenheit conversion, and that calculation
+# was available through the celsius_to_fahrenheit tool.
 
 
 response_b = run_agent(
@@ -363,8 +388,9 @@ response_b = run_agent(
 )
 
 print("Response B:", response_b)
-# No tool was called because this is a general knowledge
-# question and neither available tool is needed.
+
+# No tool was called because the question was general
+# knowledge and neither available tool was needed.
 
 
 # ============================================================
@@ -389,6 +415,15 @@ class CsvManager:
     # --------------------------------------------------------
 
     def _normalize_csv_name(self, filename: str) -> str:
+        """
+        Add the .csv extension when it is missing.
+
+        Args:
+            filename: CSV filename.
+
+        Returns:
+            str: Normalized CSV filename.
+        """
 
         if not filename.lower().endswith(".csv"):
             return filename + ".csv"
@@ -396,6 +431,12 @@ class CsvManager:
         return filename
 
     def _available_csv_files(self) -> list[str]:
+        """
+        Find CSV files in the resources directory.
+
+        Returns:
+            list[str]: Available CSV filenames.
+        """
 
         if not self.resources_dir.exists():
             return []
@@ -410,6 +451,13 @@ class CsvManager:
         )
 
     def _ensure_loaded(self):
+        """
+        Check whether a CSV file has been loaded.
+
+        Returns:
+            dict or None: Error dictionary when no CSV is
+            loaded, otherwise None.
+        """
 
         if self.df is None:
 
@@ -438,6 +486,10 @@ class CsvManager:
     def list_csv_files(self):
         """
         List available CSV files in the resources directory.
+
+        Returns:
+            dict: Available CSV filenames or a message when
+            no CSV files are found.
         """
 
         files = self._available_csv_files()
@@ -457,13 +509,14 @@ class CsvManager:
 
     def load_csv(self, filename: str):
         """
-        Load a CSV file from resources/ and make it active.
+        Load a CSV file from the resources directory.
 
         Args:
             filename: CSV filename with or without .csv.
 
         Returns:
-            A dictionary with the loaded file information.
+            dict: Information about the loaded CSV, including
+            its shape and columns, or an error message.
         """
 
         filename = self._normalize_csv_name(filename)
@@ -496,6 +549,10 @@ class CsvManager:
     def get_columns(self):
         """
         Return column names for the active CSV.
+
+        Returns:
+            list or dict: Column names when a CSV is loaded,
+            otherwise an error dictionary.
         """
 
         error = self._ensure_loaded()
@@ -512,13 +569,12 @@ class CsvManager:
         """
         Return summary statistics for selected columns.
 
-        If columns is None, summarize all columns.
-
         Args:
             columns: Optional list of columns to summarize.
+                If None, summarize all columns.
 
         Returns:
-            A dictionary containing summary statistics.
+            dict: Summary statistics or an error dictionary.
         """
 
         error = self._ensure_loaded()
@@ -563,10 +619,11 @@ class CsvManager:
         Return summary statistics for one column.
 
         Args:
-            column: Name of the column to describe.
+            column: Column to describe.
 
         Returns:
-            A dictionary containing summary statistics.
+            dict: Descriptive statistics for the column,
+            or an error dictionary.
         """
 
         error = self._ensure_loaded()
@@ -590,9 +647,11 @@ class CsvManager:
         for key, value in summary.items():
 
             if isinstance(value, (int, float)):
+
                 cleaned[key] = round(value, 3)
 
             else:
+
                 cleaned[key] = value
 
         return cleaned
@@ -609,10 +668,10 @@ class CsvManager:
         Args:
             y: Column to use for the y-axis.
             x: Optional column to use for the x-axis.
-            plot_type: Either 'line' or 'scatter'.
+            plot_type: Plot type, either line or scatter.
 
         Returns:
-            A message describing the result.
+            str or dict: Plot description or an error message.
         """
 
         error = self._ensure_loaded()
@@ -701,7 +760,7 @@ class CsvManager:
             col2: Second numeric column.
 
         Returns:
-            A dictionary containing Pearson r and p-value,
+            dict: Column names, Pearson r, and p-value,
             or an error dictionary.
         """
 
@@ -935,12 +994,12 @@ def run_agent_cycle(
     Run the agent through repeated tool-use cycles.
 
     Args:
-        messages: Conversation history.
+        messages: Conversation message history.
         user_text: New user request.
         max_tool_rounds: Maximum number of tool-use rounds.
 
     Returns:
-        The final assistant response.
+        str: Final agent response or a tool-round limit message.
     """
 
     messages.append(
@@ -1087,13 +1146,13 @@ print("\n--------- Q6 -----------------------------------------------")
 
 # system:
 # Gives the agent instructions about how to behave.
-
+#
 # user:
 # Contains the user's question or request.
-
+#
 # assistant:
 # Contains the model's response and any requested tool calls.
-
+#
 # tool:
 # Contains the result returned by a tool after it is executed.
 
@@ -1113,6 +1172,102 @@ print("\n--------- Q7 -----------------------------------------------")
 
 
 @tool
+def list_csv_files() -> dict:
+    """
+    List available CSV files.
+
+    Returns:
+        dict: Available CSV filenames.
+    """
+
+    return csv_manager.list_csv_files()
+
+
+@tool
+def load_csv(filename: str) -> dict:
+    """
+    Load a CSV file.
+
+    Args:
+        filename: Name of the CSV file.
+
+    Returns:
+        dict: Information about the loaded CSV.
+    """
+
+    return csv_manager.load_csv(filename)
+
+
+@tool
+def get_columns() -> list:
+    """
+    Get column names from the loaded CSV.
+
+    Returns:
+        list: Column names.
+    """
+
+    return csv_manager.get_columns()
+
+
+@tool
+def summarize_columns(
+    columns: list[str] | None = None
+) -> dict:
+    """
+    Summarize columns in the loaded CSV.
+
+    Args:
+        columns: Optional list of columns to summarize.
+
+    Returns:
+        dict: Summary statistics.
+    """
+
+    return csv_manager.summarize_columns(columns)
+
+
+@tool
+def describe_column(column: str) -> dict:
+    """
+    Describe one column in the loaded CSV.
+
+    Args:
+        column: Name of the column.
+
+    Returns:
+        dict: Descriptive statistics.
+    """
+
+    return csv_manager.describe_column(column)
+
+
+@tool
+def plot_data(
+    y: str,
+    x: str | None = None,
+    plot_type: str = "line"
+) -> str:
+    """
+    Create a line or scatter plot from the loaded CSV.
+
+    Args:
+        y: Column used for the y-axis.
+        x: Optional column used for the x-axis.
+        plot_type: Plot type, either line or scatter.
+
+    Returns:
+        str: Description of the plot result.
+    """
+
+    return csv_manager.plot_data(
+        y=y,
+        x=x,
+        plot_type=plot_type
+    )
+
+
+@tool
 def compute_correlation(
     col1: str,
     col2: str
@@ -1125,8 +1280,7 @@ def compute_correlation(
         col2: Name of the second numeric column.
 
     Returns:
-        A dictionary containing Pearson r and p-value,
-        or an error message.
+        dict: Column names, Pearson r, and p-value.
     """
 
     return csv_manager.compute_correlation(
@@ -1135,17 +1289,22 @@ def compute_correlation(
     )
 
 
-# Smolagents creates the tool description from the function
-# name, type hints, and docstring.
-
 print(compute_correlation.description)
 
+
+# ------------------------------------------------------------
+# Reflection:
+#
+# Smolagents creates the tool description from the function
+# name, type hints, and docstring.
+#
 # The manual JSON schema in Q4 requires more code.
 # Using @tool is simpler because Smolagents builds the tool
 # information automatically.
 #
 # Good docstrings are important because they help the agent
 # understand how and when to use a tool.
+# ------------------------------------------------------------
 
 
 # ============================================================
@@ -1161,7 +1320,17 @@ model = OpenAIServerModel(
 )
 
 
+# Both agents receive the SAME TOOLS list.
+# The new compute_correlation tool is included with the
+# existing CSV tools from the lesson.
+
 TOOLS = [
+    list_csv_files,
+    load_csv,
+    get_columns,
+    summarize_columns,
+    describe_column,
+    plot_data,
     compute_correlation
 ]
 
@@ -1189,41 +1358,42 @@ response_tool = tool_agent.run(prompt)
 
 
 response_code = code_agent.run(
-    prompt,
-    additional_args={
-        "csv_manager": csv_manager
-    }
+    prompt
 )
 
 
 print("ToolCallingAgent Response:")
 print(response_tool)
 
-
 print("\nCodeAgent Response:")
 print(response_code)
 
 
 # ------------------------------------------------------------
-# Q8 Reflection
+# Q8 Reflection:
 #
-# What happened with the ToolCallingAgent?
+# Both agents received the SAME TOOLS list, including the new
+# compute_correlation tool.
 #
-# The ToolCallingAgent can only use the tools that are given
-# to it. The only tool provided here is compute_correlation,
-# so it cannot directly create the requested scatter plot.
+# The ToolCallingAgent can use the available tools directly.
+# It can use load_csv and plot_data, but the plot_data tool
+# does not provide a color argument. Therefore, it cannot
+# directly add the requested green color through that tool.
 #
-# What happened with the CodeAgent?
+# The CodeAgent can use the available tools and can also write
+# and run Python code. Therefore, it can create the scatter
+# plot with matplotlib and explicitly set the dots to green.
 #
-# The CodeAgent is more flexible because it can write and run
-# Python code. It can use Python libraries such as pandas and
-# matplotlib to create a custom plot.
+# This shows that ToolCallingAgent is useful when the required
+# operation is already available as a defined tool, while
+# CodeAgent is more flexible when the request requires custom
+# Python code or a customization that the existing tool does
+# not support.
 #
-# Which agent is better for this task?
-#
-# The CodeAgent is better for this plotting task because the
-# task requires custom Python code rather than only calling an
-# existing tool.
+# The important difference in this example is the color:
+# the ToolCallingAgent's plot_data tool does not support a
+# color parameter, while the CodeAgent can generate code that
+# changes the scatter-plot color to green.
 # ------------------------------------------------------------
 
 
@@ -1235,34 +1405,46 @@ print("\n--------- Q9 -----------------------------------------------")
 
 
 # ------------------------------------------------------------
-# Q9 Reflection
+# Reflection:
 #
-# 1. When would you choose a ToolCallingAgent?
+# 1. What is the main difference between ToolCallingAgent
+#    and CodeAgent?
 #
-#    I would choose a ToolCallingAgent when the task can be
-#    completed using tools that have already been defined.
-#    For example, it is useful for loading a CSV or computing
-#    a correlation when those functions are available as tools.
+#    ToolCallingAgent works by selecting and calling the
+#    tools that have already been provided. It is a good choice
+#    when the required operation already exists as a tool.
 #
-#
-# 2. When would you choose a CodeAgent?
-#
-#    I would choose a CodeAgent when the task requires writing
-#    or running custom Python code. For example, creating a
-#    custom plot requires code that may not already exist as
-#    a tool.
+#    CodeAgent can also use tools, but it can write and execute
+#    Python code. This gives it more flexibility for custom
+#    analysis, calculations, and visualizations.
 #
 #
-# 3. What is one advantage and one disadvantage of CodeAgent?
+# 2. What did the agents produce for the scatter-plot request?
 #
-#    An advantage is that CodeAgent is flexible because it can
-#    write and execute Python code for new tasks.
+#    Both agents had access to the same TOOLS list. The
+#    ToolCallingAgent could use the existing plot_data tool,
+#    but that tool does not have a color option. The CodeAgent
+#    could generate custom matplotlib code and therefore could
+#    make the requested scatter plot with green dots.
 #
-#    A disadvantage is that generated code can contain errors
-#    or may not behave exactly as expected.
+#
+# 3. What does the color comparison show about when each agent
+#    is useful?
+#
+#    The color comparison shows that a ToolCallingAgent is
+#    useful for predictable tasks that match the capabilities
+#    of existing tools. A CodeAgent is more useful when a task
+#    needs a customization that is not supported by the
+#    existing tools, such as changing the scatter-plot color.
 #
 #
-# 4. What is one advantage of ToolCallingAgent?
+# 4. When would you choose each agent?
 #
-#    ToolCallingAgent is more predictable because it can only
-#    use the tools that have been provided to it.
+#    I would choose ToolCallingAgent when I have well-defined
+#    tools and want the agent to use those tools in a controlled
+#    and predictable way.
+#
+#    I would choose CodeAgent when the task requires flexible
+#    Python code, custom calculations, or custom visualizations
+#    that cannot be completed by the existing tools alone.
+# ------------------------------------------------------------
