@@ -1,32 +1,17 @@
-Video: https://youtu.be/jNx_F3zbFNE
+# Project 08 — Cloud Setup and Cost Analysis
 
-Set up
+## Video
 
-set up completed and two tables created without any issue.
+https://youtu.be/jNx_F3zbFNE
 
+## Part A — Supabase Setup
 
-1. Scenario A — Lightweight compute: A t3.micro EC2 instance (1 vCPU, 1 GB RAM)
+I completed my Supabase setup and created the `weather_raw` and `weather_enriched` tables without any issues.
 
-1 instances x 0.0104 USD On Demand hourly cost x 160 hours in a month = 1.664000 USD
-On-Demand instances (monthly): 1.664000 USD
+## Part B — Cloud Cost Analysis
 
-Total 12 months cost
-19.92 USD
-Includes upfront cost
+Scenario A uses a `t3.micro` EC2 instance for 160 hours per month. It costs about **$1.66 per month** and **$19.92 for 12 months**.
 
-2. Scenario B — Heavy analytics workload: A p3.2xlarge EC2 instance 
+Scenario B uses a `p3.2xlarge` GPU EC2 instance, an RDS `db.m5.large` database, and 1 TB of S3 storage. The EC2 costs **$2,233.80**, RDS costs **$323.03**, and S3 costs **$23.55** per month. The total is about **$2,580.38 per month** or **$30,964.56 for 12 months**.
 
-
-Upfront cost
-0.00 USD
-Monthly cost
-2,580.38 USD
-Total 12 months cost
-30,964.56 USD
-
-
-Scenario A costs about $1.66 per month. Scenario B costs about $2,580.38 per month for EC2, plus the RDS and S3 costs. I was surprised that the GPU instance costs so much.
-
-While using the calculator, I learned that the cost changes based on the instance type and how many hours it runs.
-
-Scenario B is much more expensive because it uses a powerful GPU and runs 24/7. A GPU is useful for heavy ML work, but it is not worth the cost for simple projects.
+I was surprised by how expensive the GPU instance is. I also learned that the cost changes a lot depending on the type of instance and how many hours it runs. Scenario B is much more expensive because it uses a powerful GPU and runs 24/7. A GPU can be useful for heavy machine learning work, but for a small project, it would probably not be worth the cost.
