@@ -38,9 +38,13 @@ params = {
 response = requests.get(url, params=params)
 response.raise_for_status()  # Raise an error for bad responses
 data = response.json() 
-#df= pd.DataFrame(data["daily"]) 
 print("Data extracted successfully from the API.")
-#print(df.head())  # Print the first few records to verify
+print("Data extracted successfully from the API.")
+print("City: Boston")
+print("Days received:", len(data["daily"]["time"]))
+print("Units:", data["daily_units"])
+
+
 
 ###----Step 2: Transform-----------------------------------
 print(" ---Step 2: Transform-----------------------------------")
@@ -110,23 +114,97 @@ print(f"Upserted {len(response.data)} rows into weather_raw")
 
 print(" ---Step 4: Verify-----------------------------------")
 
-## Prints the total number of rows in weather_raw
-count_response = supabase.table("weather_raw").select("date", count = 'exact').execute()
+###-----Step 4: Verify-----------------------------------------------
+print(" ---Step 4: Verify-----------------------------------")
+
+# Print the total number of rows in the table.
+count_response = (
+    supabase.table("weather_raw")
+    .select("date", count="exact", head=True)
+    .execute()
+)
+
 print(f"Total records in weather_raw: {count_response.count}")
 
 
-## Prints the earliest and latest dates in the table
-# First date
-first = supabase.table("weather_raw").select("*").eq("date", "2023-01-01").execute()
+# Find the earliest date by sorting from oldest to newest.
+first = (
+    supabase.table("weather_raw")
+    .select("date")
+    .order("date")
+    .limit(1)
+    .execute()
+)
 
-# Last date
-last = supabase.table("weather_raw").select("*").eq("date", "2023-12-31").execute()
+# Find the latest date by sorting from newest to oldest.
+last = (
+    supabase.table("weather_raw")
+    .select("date")
+    .order("date", desc=True)
+    .limit(1)
+    .execute()
+)
+
+if first.data and last.data:
+    print(f"Earliest date in weather_raw: {first.data[0]['date']}")
+    print(f"Latest date in weather_raw: {last.data[0]['date']}")
+else:
+    print("The table is empty.")
 
 
-print(f"Earliest date in weather_raw: {first.data[0]['date']}")
-print(f"Latest date in weather_raw: {last.data[0]['date']}")
+# Find the row for July 4.
+target_date = "2023-07-04"
 
+july_4 = (
+    supabase.table("weather_raw")
+    .select("*")
+    .eq("date", target_date)
+    .execute()
+)
 
-## Prints the row for 2023-07-04
-july_4 = supabase.table("weather_raw").select("*").eq("date", "2023-07-04").execute()
-print(f"Row for 2023-07-04: {july_4.data[0]}")
+if july_4.data:
+    print(f"Row for 2023-07-04: {july_4.data[0]}")
+
+else:
+    # Find the closest available date before July 4.
+    before = (
+        supabase.table("weather_raw")
+        .select("*")
+        .lt("date", target_date)
+        .order("date", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    # Find the closest available date after July 4.
+    after = (
+        supabase.table("weather_raw")
+        .select("*")
+        .gt("date", target_date)
+        .order("date")
+        .limit(1)
+        .execute()
+    )
+
+    # Combine the results: at most two rows.
+    candidates = before.data + after.data
+
+    nearest_row = None
+    smallest_difference = None
+
+    for row in candidates:
+        # Convert the date strings into Python dates.
+        row_date = date.fromisoformat(row["date"])
+        target = date.fromisoformat(target_date)
+
+        # Count how many days apart they are.
+        difference = abs((row_date - target).days)
+
+        if smallest_difference is None or difference < smallest_difference:
+            smallest_difference = difference
+            nearest_row = row
+
+    if nearest_row is not None:
+        print("July 4 is missing. Nearest record:", nearest_row)
+    else:
+        print("No weather records were found.")
