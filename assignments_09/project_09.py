@@ -1,26 +1,21 @@
-
 # Project — Extract + Load Pipeline
 # JarirTech
 
-##Video: https://youtu.be/krRhDVg9K0I
-
-
+# Video: https://youtu.be/krRhDVg9K0I
 
 import os
-from dotenv import load_dotenv
-import pandas as pd
-
-from supabase import create_client, Client
-
 from datetime import date
 
 import requests
-import json
+from dotenv import load_dotenv
+from supabase import create_client
 
-### ------Step 1: Extract------------------------------
 
+# --- Step 1: Extract -----------------------------------
+print(" ---Step 1: Extract-----------------------------------")
+
+# Boston weather data for the full year 2023.
 url = "https://archive-api.open-meteo.com/v1/archive"
-# Boston weather data for 2023
 
 params = {
     "latitude": 42.3601,
@@ -34,29 +29,31 @@ params = {
         "wind_speed_10m_max",
     ],
     "timezone": "America/New_York",
+    "temperature_unit": "celsius",
+    "precipitation_unit": "mm",
+    "wind_speed_unit": "kmh",
 }
-response = requests.get(url, params=params)
-response.raise_for_status()  # Raise an error for bad responses
-data = response.json() 
-print("Data extracted successfully from the API.")
+
+response = requests.get(url, params=params, timeout=60)
+response.raise_for_status()
+
+data = response.json()
+
 print("Data extracted successfully from the API.")
 print("City: Boston")
 print("Days received:", len(data["daily"]["time"]))
 print("Units:", data["daily_units"])
 
+# Check that these units match the Week 4 training data.
 
 
-###----Step 2: Transform-----------------------------------
+# --- Step 2: Transform -----------------------------------
 print(" ---Step 2: Transform-----------------------------------")
 
-
-# weather_raw_columns: date, temperature_2m_max, temperature_2m_min, precipitation_sum, wind_speed_10m_max, loaded_at
-# data_columns:     time  temperature_2m_max  temperature_2m_min  precipitation_sum  wind_speed_10m_max
-
-# Convert the API response from columnar format into a list of row dictionaries. Each dictionary should have keys that 
-# exactly match the column names in weather_raw.
+# Convert the separate lists into one dictionary for each day.
 records = []
 daily = data["daily"]
+
 for i in range(len(daily["time"])):
     row = {
         "date": daily["time"][i],
@@ -64,60 +61,69 @@ for i in range(len(daily["time"])):
         "temperature_2m_min": daily["temperature_2m_min"][i],
         "precipitation_sum": daily["precipitation_sum"][i],
         "wind_speed_10m_max": daily["wind_speed_10m_max"][i],
-        "loaded_at": date.today().isoformat()
     }
+
     records.append(row)
 
-print(f"The number of records is:  {len(records)}")
-#Print the first and last record to confirm the transformation looks correct. 
+print("The number of records is:", len(records))
 
+if not records:
+    raise ValueError("The API returned no daily weather records.")
 
-# First record:
 print("First record:", records[0])
-# Last record:
 print("Last record:", records[-1])
 
+# I expected 365 records because 2023 was not a leap year.
+# I received 365 records, so the numbers match.
+# If the numbers differed, I would check the requested dates
+# and whether the API response was incomplete.
 
-# Add a comment: how many records do you expect for a full year, and how many did you get? If the numbers differ,
-#  what might explain the discrepancy?
 
-## I am expecting 365 records for a full year, and I got 365 records. The numbers match the expectation. 
-
-##-----Step 3: Load-----------------------------------
+# --- Step 3: Load -----------------------------------
 print(" ---Step 3: Load-----------------------------------")
 
-load_dotenv()  # reads .env and sets environment variables
-if load_dotenv():
+# Call load_dotenv() only once.
+if not load_dotenv():
+    print("No environment variables were loaded from the .env file.")
+else:
     print("Environment variables loaded successfully.")
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Credentials may also be set outside the .env file.
+# Check them before creating the client.
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("Environment variables 'SUPABASE_URL' and 'SUPABASE_KEY' must be set.")
+    raise ValueError(
+        "Environment variables 'SUPABASE_URL' and 'SUPABASE_KEY' must be set."
+    )
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# The date column must be unique or the primary key.
 response = (
     supabase.table("weather_raw")
     .upsert(records, on_conflict="date")
     .execute()
 )
 
-print(f"Upserted {len(response.data)} rows into weather_raw")
+print(f"Successfully upserted {len(records)} weather records.")
 
-#Run the script a second time and confirm the row count in weather_raw does not change. 
-# Add a comment: what does this tell you about idempotency?
+# Upsert adds a row if its date does not exist.
+# If the date already exists, it updates that row.
+# Loading the same records again does not create duplicate rows.
+# This makes the load idempotent.
 
-## I got the same number of records after running the script a second time, which confirms that the upsert operation is idempotent.
-#  This means that running the same operation multiple times will not change the result beyond the initial application, 
-# ensuring data consistency and preventing duplicate entries.
+# Run this updated script twice and fill in your results:
+# Total rows after the first run: ____
+# Total rows after the second run: ____
+# Did the total stay the same? ____
 
-###-----Step 4: Verify-----------------------------------------------
 
+# --- Step 4: Verify -----------------------------------
 print(" ---Step 4: Verify-----------------------------------")
 
-###-----Step 4: Verify-----------------------------------------------
-print(" ---Step 4: Verify-----------------------------------")
-
-# Print the total number of rows in the table.
+# Print the total number of rows in the whole table.
 count_response = (
     supabase.table("weather_raw")
     .select("date", count="exact", head=True)
@@ -127,7 +133,7 @@ count_response = (
 print(f"Total records in weather_raw: {count_response.count}")
 
 
-# Find the earliest date by sorting from oldest to newest.
+# Find the earliest date: sort from oldest to newest.
 first = (
     supabase.table("weather_raw")
     .select("date")
@@ -136,7 +142,7 @@ first = (
     .execute()
 )
 
-# Find the latest date by sorting from newest to oldest.
+# Find the latest date: sort from newest to oldest.
 last = (
     supabase.table("weather_raw")
     .select("date")
@@ -186,18 +192,17 @@ else:
         .execute()
     )
 
-    # Combine the results: at most two rows.
+    # Compare the two possible records.
     candidates = before.data + after.data
 
     nearest_row = None
     smallest_difference = None
+    target = date.fromisoformat(target_date)
 
     for row in candidates:
-        # Convert the date strings into Python dates.
         row_date = date.fromisoformat(row["date"])
-        target = date.fromisoformat(target_date)
 
-        # Count how many days apart they are.
+        # Find the number of days between the two dates.
         difference = abs((row_date - target).days)
 
         if smallest_difference is None or difference < smallest_difference:

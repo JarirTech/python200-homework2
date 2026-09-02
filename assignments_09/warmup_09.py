@@ -54,6 +54,10 @@ def get_client():
     return supabase
 
 
+# Create the client once and reuse it in the functions below.
+supabase = get_client()
+
+
 #----Connection Question 3------------------------------------------------------
 print(" ---Connection Question 3--------------------------------")
 
@@ -101,6 +105,11 @@ def insert_test_record(supabase: Client):
     return response.data
 
 
+# Uncomment these lines to test insert if today's date is not
+# already in the table.
+# result = insert_test_record(supabase)
+# print(result)
+
 
 ### What would happen if you ran the function twice?
 #
@@ -139,7 +148,7 @@ def get_records_by_date_range(supabase, start, end):
 
 
 get_records_by_date_range(
-    supabase=get_client(),
+    supabase,
     start="2026-01-01",
     end="2026-12-31",
 )
@@ -190,7 +199,7 @@ test_records = [
     }
 ]
 
-safe_upsert(supabase=get_client(), records=test_records)
+safe_upsert(supabase, records=test_records)
 
 
 ##----Idempotency------------------------------------------
