@@ -1,0 +1,17 @@
+pandas
+numpy
+scipy
+matplotlib
+seaborn
+prefect
+scikit-learn
+openai
+ipython
+pypdf 
+python-dotenv 
+"llama-index-core==0.14.10" 
+llama-index-embeddings-openai
+supabase 
+python-dotenv 
+requests
+
