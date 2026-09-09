@@ -27,9 +27,16 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 #---------------------------------------------------------------------------------
 ###  ---Step 1: Incremental Read----
 print(" ---Step 1: Incremental Read-----------------------------------")
-# Loading metadata model 
+# Loading metadata model
+# 
+# path for the ML model and metadata 
 
-metadata_path = Path(r"..\assignments_04\models\weather_classifier_metadata.json")
+# Metadata path
+metadata_path = Path("models/weather_classifier_metadata.json")
+
+# Model path
+clf_path = Path("models/weather_classifier.pkl")
+
 with open(metadata_path, "r") as f:
     metadata = json.load(f)
 print("Metadata loaded successfully.")
@@ -66,7 +73,7 @@ else:
 
     # Loading the ML model
 
-    clf_path = Path(r"..\assignments_04\models\weather_classifier.pkl")
+    
 
     clf = joblib.load(clf_path)
     print("ML model loaded successfully.")
@@ -100,10 +107,11 @@ else:
 
     for i, row in df.iterrows():
         enrichment_record = {
-            "date": row["date"],
-            "good_for_running": int(predict[i]),
-            "confidence": float(predict_proba[i][predict[i]])
-        }
+        "date": row["date"],
+        "good_for_running": bool(predict[i]),
+        "confidence": float(predict_proba[i][predict[i]])
+    }
+        
 
         enrichment_records.append(enrichment_record)
 
@@ -280,7 +288,8 @@ print(f"Good-for-running days in weather_enriched: {good_count.count}")
 
 # ------Step 6: Reflect------------------------------
 
-# The ML model was trained on Boston weather data, and my Week 9 data is also from Boston.
+# The assignment says the ML classifier was trained on Charlotte, NC weather data,
+# But my ML model was trained on Boston weather data, and my Week 9 data is also from Boston.
 # Because the data is from the same city, I expect the predictions to be more accurate.
 # The LLM does not change the ML prediction; it only adds a simple recommendation.
 # This means if the ML prediction is wrong, the LLM may also give a bad recommendation.
