@@ -81,34 +81,27 @@ from time import sleep
 
 def call_with_retry(client, messages, max_retries=3):
     """
-    Call the OpenAI API and retry up to max_retries times
-    if an exception happens.
-    Wait 2 seconds between attempts.
-    Return None after the final failure.
+    Make one initial API call, then retry up to max_retries times.
+    Wait 2 seconds between retries.
+    Return None if all attempts fail.
     """
 
-    max_attempts = max_retries + 1
-
-    for attempt in range(max_attempts):
+    for attempt in range(max_retries + 1):
         try:
-            response = client.chat.completions.create(
+            return client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=messages,
+                messages=messages
             )
-
-            return response
 
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
 
-            if attempt < max_retries:
-                print("Retrying in 2 seconds...")
-                sleep(2)
-
-            else:
-                print("Final attempt failed. Returning None.")
+            if attempt == max_retries:
+                print("All attempts failed. Returning None.")
                 return None
 
+            print("Retrying in 2 seconds...")
+            sleep(2)
 
 # I would use this retry function in a production pipeline when calling an API
 # because temporary network or service errors can happen.
