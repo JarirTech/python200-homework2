@@ -105,13 +105,25 @@ else:
     # Build a list of enrichment records
     enrichment_records = []
 
-    for i, row in df.iterrows():
-        enrichment_record = {
-        "date": row["date"],
-        "good_for_running": bool(predict[i]),
-        "confidence": float(predict_proba[i][predict[i]])
-    }
+    # for i, row in df.iterrows():
+    #     enrichment_record = {
+    #     "date": row["date"],
+    #     "good_for_running": bool(predict[i]),
+    #     "confidence": float(predict_proba[i][predict[i]])
+    # }
         
+
+    #     enrichment_records.append(enrichment_record)
+
+    for i, row in df.iterrows():
+        predicted_class = predict[i]
+        class_index = list(clf.classes_).index(predicted_class)
+
+        enrichment_record = {
+            "date": row["date"],
+            "good_for_running": bool(predicted_class),
+            "confidence": float(predict_proba[i][class_index])
+        }
 
         enrichment_records.append(enrichment_record)
 

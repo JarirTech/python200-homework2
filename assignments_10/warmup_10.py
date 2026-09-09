@@ -1,110 +1,116 @@
-#jarirTech
-
-
-from supabase import create_client, Client
-from openai import OpenAI
+# JarirTech
 
 from time import sleep
 
 
-##---Part 1: Warmup-----
-
-###---- ML vs. LLM in Pipelines------
-
-## In a comment block, explain the difference between what the ML classifier produces 
-# and what the LLM produces in this week's pipeline
-
-# In this week pipeline the ML and LLM both are part of the Transform step.
-
-#  the ML classifier produces a binary label and a confidence score for each day. It uses the weather numeric data to make a binary prediction,
-
-# such as if the weather is good for running or not. It is fast, cheap, and gives reproducible results.
+# =========================================================
+# Part 1: Warmup
+# =========================================================
 
 
-# The ML model is better for the binary prediction because it is fast and consistent.
-
-# The LLM is better for writing a recommendation because it understands and generates language.
-
-# If we swap them, the LLM may give different predictions, and the ML model cannot write
-
-# a natural-language recommendation.
-
-###----ML/LLM Question 2----------
-
-##Converting a date string like "2023-07-04" to day-of-week
-# I will use determinstic code to convert a date string to a day-of-week. because it will always give the same result for the same input.
-
-##Classifying a job posting as "entry-level", "mid-level", or "senior" based on freeform text
-# I will use an LLM to classify a job posting because it can understand and generate language, and it can handle the variability in freeform text.
-
-## Predicting customer churn given 15 numeric features and a labeled training dataset
-# I will use a ML model to predict customer churn because I can train the model on the labeled training dataset and it can learn patterns in the 
-# numeric features to make predictions.
-
-## Normalizing inconsistent city names ("NYC", "New York City", "New York, NY") to a canonical form
-# I will use an LLM to normalize inconsistent city names because it can understand and generate language, and it can handle the variability in freeform text.
+# =========================================================
+# ML vs. LLM in Pipelines
+# =========================================================
 
 
-## Summing a column of revenue figures
-# I will use a deterministic function to sum a column of revenue figures because it will always give the same result for the same input,
-# and it can be implemented with a simple aggregation operation.
+# ---------------- ML/LLM Question 1 ----------------
 
-## ------ML/LLM Question 3----------
-
-# what is incremental processing and why is it important for this pipeline?
-
-# Incremental processing means only process the data that has changed since the last time the pipeline ran. It is more efficient than reprocessing 
-# all the data every time, especially when the dataset is large and only a small portion of it changes between runs like in this pipeline.
-
-# What would happen — in terms of cost and data correctness — if the transform script re-processed all 365 records every time it ran?
-# There will be more cost not necessary because the ML model and LLM will be called for all 365 records, even if only a few have changed. Also it could lead
-#  to data correctness issues if the ML model or LLM produces different results for the same input on different runs, which could happen if they are not deterministic.
+# The ML classifier produces a binary prediction, such as good for running
+# or skip, and it also produces a confidence score.
+# It works well because it was trained on labeled numeric weather data.
+# The LLM produces a natural-language recommendation based on the weather
+# features and the ML prediction.
+# The LLM is better for language because it can generate clear human-readable text.
+# If we swapped them, the LLM could give less consistent binary predictions,
+# while the ML classifier cannot generate a natural-language recommendation.
 
 
-###---Prompt Design------------------------------------------------------------------------------------------------------------
+# ---------------- ML/LLM Question 2 ----------------
 
-# ----------Prompt Question 1------------------------------
+# Converting a date string like "2023-07-04" to day-of-week:
+# I would use deterministic code because the answer should always be the same.
 
-#SYSTEM_PROMPT = (
-#     "You are writing two sentences:"
-#     "First sentence states the prediction: good for running or skip."
-#     " Second sentence explains the reasoning for a daily weather summary app. "
-#     "You will receive weather conditions for a single day and a machine learning prediction "
-#     "about whether the day is good for running. "
-#     "Write exactly two sentences — direct, practical, and specific to the conditions. "
-#     "Do not use bullet points, headers, or phrases like 'Based on the data'."
+# Classifying a job posting as entry-level, mid-level, or senior:
+# I would use an LLM because it can understand freeform job description text.
+
+# Predicting customer churn using 15 numeric features and labeled training data:
+# I would use a trained ML model because it can learn patterns from labeled numeric data.
+
+# Normalizing inconsistent city names:
+# I would use an LLM because it can understand different ways people write the same city name.
+
+# Summing a column of revenue figures:
+# I would use deterministic code because addition is a simple exact calculation.
+
+
+# ---------------- ML/LLM Question 3 ----------------
+
+# Incremental processing means processing only records that have not already
+# been processed.
+# It is important because the pipeline does not need to repeat work for records
+# that are already stored in weather_enriched.
+# If all 365 records were processed every time, the ML model and especially
+# the LLM would repeat unnecessary work.
+# This would increase API cost and processing time.
+# It could also change previous LLM summaries because LLM output may vary
+# between runs, which could reduce data consistency.
+
+
+# =========================================================
+# Prompt Design
+# =========================================================
+
+
+# ---------------- Prompt Question 1 ----------------
+
+# SYSTEM_PROMPT = (
+#     "You are writing a two-sentence running recommendation for a daily weather app. "
+#     "The first sentence must state whether the prediction is good for running or skip. "
+#     "The second sentence must explain the reason using the weather conditions. "
+#     "Write exactly two sentences. "
+#     "Do not use bullet points, headers, or extra explanation."
 # )
-##  what would you need to change in the validation logic to accommodate two sentences instead of one?
 
-# I will check that the output contains exactly two sentences, and that each sentence is complete and makes sense in the context 
-# of the weather conditions and the ML prediction. I will also check that the first sentence states the prediction and the second 
-# sentence explains the reasoning, as specified in the prompt.
+# To validate two sentences instead of one, I would change the validation logic
+# so it checks that exactly two sentences are returned.
+# I would also check that the first sentence states the prediction and the second
+# sentence explains the reasoning.
 
 
-###----------Prompt Question 2------------------------------
+# ---------------- Prompt Question 2 ----------------
 
 def call_with_retry(client, messages, max_retries=3):
     """
-     calls client.chat.completions.create() and retries up to max_retries times on any exception, with a 2-second wait between attempts.
-     On final failure, return None
+    Call the OpenAI API and retry up to max_retries times
+    if an exception happens.
+    Wait 2 seconds between attempts.
+    Return None after the final failure.
     """
+
     max_attempts = max_retries + 1
+
     for attempt in range(max_attempts):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=messages,
-                
             )
+
             return response
+
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
+
             if attempt < max_retries:
                 print("Retrying in 2 seconds...")
                 sleep(2)
+
             else:
-                print("Max retries reached. Returning None.")
+                print("Final attempt failed. Returning None.")
                 return None
 
-# I will use this function in a production pipeline to handle transient errors when calling the OpenAI API. 
-# It will help ensure that temporary issues do not cause the entire pipeline to fail, improving reliability and robustness.
+
+# I would use this retry function in a production pipeline when calling an API
+# because temporary network or service errors can happen.
+# Retrying can help the pipeline recover from short temporary failures
+# instead of failing immediately.
