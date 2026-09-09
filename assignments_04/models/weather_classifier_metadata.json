@@ -1,0 +1,25 @@
+{
+    "python_version": "3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]",
+    "sklearn_version": "1.9.0",
+    "feature_names": [
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "precipitation_sum",
+        "wind_speed_10m_max"
+    ],
+    "best_hyperparameters": {
+        "clf__C": 10
+    },
+    "test_auc": 0.7468253968253968,
+    "city": {
+        "name": "Boston, MA",
+        "latitude": 42.3601,
+        "longitude": -71.0589
+    },
+    "label_thresholds": {
+        "temperature_2m_max": "7 to 26 \u00b0C",
+        "temperature_2m_min": ">=  0 \u00b0C",
+        "precipitation_sum": "< 3 mm",
+        "wind_speed_10m_max": "< 30 km/h"
+    }
+}
